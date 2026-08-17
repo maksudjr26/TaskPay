@@ -1,0 +1,6 @@
+{
+  "name": "TaskPay - Customer Task & Recharge Platform",
+  "description": "A modern, secure and mobile-friendly Task Completion & Recharge platform with bKash/Nagad manual deposit verification, interactive tasks, account activation rules, withdrawal management, and an Admin control panel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
