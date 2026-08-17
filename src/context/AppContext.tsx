@@ -288,17 +288,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (existing) {
       const msg = lang === 'bn' ? 'এই মোবাইল নম্বর দিয়ে ইতিমধ্যে একাউন্ট খোলা হয়েছে' : 'An account already exists with this phone number';
       showToast(msg, 'error');
-      return { success: false, message: msg, isMymensingh: zone === 'Mymensingh' };
+      return { success: false, message: msg, isMymensingh: true };
     }
-
-    const isMymensingh = zone === 'Mymensingh';
 
     const newUser: User = {
       id: 'usr_' + Date.now(),
       name: name.trim(),
       phone: cleanPhone,
       password: pass,
-      zone: zone || 'Mymensingh',
+      zone: zone || 'Dhaka',
       role: 'customer',
       status: 'inactive', // Inactive until activation recharge
       balance: 0,
@@ -307,23 +305,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       totalWithdrawn: 0,
       tasksCompletedCount: 0,
       joinedDate: new Date().toISOString().split('T')[0],
-      referralCode: name.trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) + Math.floor(100 + Math.random() * 900),
+      referralCode: (name.trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || 'USER') + Math.floor(100 + Math.random() * 900),
       referredBy: referralCode?.trim() || undefined,
-      notes: isMymensingh ? 'Mymensingh active earnings zone.' : `Registered from ${zone} (Farther queries/waitlist queue).`
+      notes: `Registered from ${zone} active working zone.`
     };
 
     setUsers(prev => [newUser, ...prev]);
     setCurrentCustomerId(newUser.id);
     setCurrentRoleView('customer');
 
-    if (isMymensingh) {
-      showToast(t.registeredSuccessMymensingh, 'success');
-      triggerConfetti();
-    } else {
-      showToast(t.registeredSuccessOther, 'info');
-    }
+    showToast(lang === 'bn' ? 'রেজিস্ট্রেশন সফল হয়েছে! একাউন্ট সক্রিয় করতে রিচার্জ সম্পন্ন করুন।' : 'Registration successful! Recharge to activate your account.', 'success');
+    triggerConfetti();
 
-    return { success: true, isMymensingh };
+    return { success: true, isMymensingh: true };
   };
 
   const loginCustomer = (phone: string, pass: string): boolean => {

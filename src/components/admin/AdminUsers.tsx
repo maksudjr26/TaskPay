@@ -64,7 +64,7 @@ export const AdminUsers: React.FC = () => {
         <div>
           <h2 className="text-xl font-bold text-slate-900">{t.customerManagement}</h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            {lang === 'bn' ? `মোট রেজিস্টার্ড কাস্টমার: ${customerList.length} জন | ময়মনসিংহ জোন: ${customerList.filter(u => u.zone === 'Mymensingh').length} জন` : `Total Customers: ${customerList.length} | Mymensingh Zone: ${customerList.filter(u => u.zone === 'Mymensingh').length}`}
+            {lang === 'bn' ? `মোট রেজিস্টার্ড কাস্টমার: ${customerList.length} জন (সকল জোনে একাউন্ট ও আর্নিং সক্রিয়)` : `Total Registered Customers: ${customerList.length} (Active across all zones)`}
           </p>
         </div>
 
@@ -79,7 +79,7 @@ export const AdminUsers: React.FC = () => {
               <option value="all">{lang === 'bn' ? 'সকল জোন (All Zones)' : 'All Zones'}</option>
               {AVAILABLE_ZONES.map(z => (
                 <option key={z.id} value={z.id}>
-                  {z.id} {z.isActiveWorkingZone ? '🟢 (Active)' : '🟡 (Query)'}
+                  {z.id} 🟢 (Active)
                 </option>
               ))}
             </select>
@@ -168,17 +168,11 @@ export const AdminUsers: React.FC = () => {
 
                       {/* Zone Column */}
                       <td className="px-4 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${
-                            isMymensingh
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              : 'bg-amber-50 text-amber-900 border-amber-200'
-                          }`}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full ${isMymensingh ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                          <span>{user.zone || 'Mymensingh'}</span>
-                          <span className="text-[9px] opacity-75">
-                            {isMymensingh ? '(Active)' : '(Query)'}
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border bg-emerald-50 text-emerald-800 border-emerald-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          <span>{user.zone || 'Dhaka'}</span>
+                          <span className="text-[9px] font-semibold text-emerald-700">
+                            (Active)
                           </span>
                         </span>
                       </td>

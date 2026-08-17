@@ -83,14 +83,10 @@ export const CustomerNavbar: React.FC<Props> = ({ activeTab, setActiveTab }) => 
             {/* Zone & Account Status Badge */}
             {currentUser.zone && (
               <div
-                className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
-                  currentUser.zone === 'Mymensingh'
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                    : 'bg-amber-50 text-amber-900 border-amber-200'
-                }`}
-                title={`Selected Zone: ${currentUser.zone}`}
+                className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border bg-emerald-50 text-emerald-800 border-emerald-200"
+                title={`Active Zone: ${currentUser.zone}`}
               >
-                <span className={`w-2 h-2 rounded-full ${currentUser.zone === 'Mymensingh' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 <span>{currentUser.zone}</span>
               </div>
             )}
@@ -126,7 +122,7 @@ export const CustomerNavbar: React.FC<Props> = ({ activeTab, setActiveTab }) => 
               <div className="flex items-baseline gap-1">
                 <span className="text-slate-400 text-xs">{settings.currencySymbol}</span>
                 <span className="tracking-tight text-emerald-400 font-extrabold text-sm sm:text-base">
-                  {currentUser.balance.toLocaleString()}
+                  {(currentUser.balance || 0).toLocaleString()}
                 </span>
               </div>
               <PlusCircle className="w-3.5 h-3.5 text-emerald-400/80 hidden sm:inline" />
@@ -135,7 +131,7 @@ export const CustomerNavbar: React.FC<Props> = ({ activeTab, setActiveTab }) => 
             {/* Quick Recharge button on desktop */}
             <button
               onClick={() => setActiveTab('deposit')}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs shadow-emerald-600/20"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs shadow-emerald-600/20 cursor-pointer"
             >
               <ArrowUpRight className="w-3.5 h-3.5" />
               <span>{t.rechargeNow}</span>
@@ -144,15 +140,15 @@ export const CustomerNavbar: React.FC<Props> = ({ activeTab, setActiveTab }) => 
             {/* User Profile Mini Tab Trigger */}
             <button
               onClick={() => setActiveTab('profile')}
-              className={`p-1.5 rounded-xl border transition-colors flex items-center gap-2 ${
+              className={`p-1.5 rounded-xl border transition-colors flex items-center gap-2 cursor-pointer ${
                 activeTab === 'profile'
                   ? 'border-emerald-500 bg-emerald-50'
                   : 'border-slate-200 hover:bg-slate-100'
               }`}
-              title={currentUser.name}
+              title={currentUser.name || 'User'}
             >
               <div className="w-7 h-7 rounded-lg bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs">
-                {currentUser.name.charAt(0)}
+                {currentUser.name ? currentUser.name.charAt(0) : 'U'}
               </div>
             </button>
           </div>

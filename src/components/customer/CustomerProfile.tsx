@@ -124,27 +124,23 @@ export const CustomerProfile: React.FC = () => {
       </div>
 
       {/* Zone Status Announcement Card */}
-      <div
-        className={`p-5 rounded-3xl border flex items-start gap-3.5 ${
-          isMymensingh
-            ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
-            : 'bg-amber-50/80 border-amber-200 text-amber-950'
-        }`}
-      >
-        <div className={`p-2.5 rounded-2xl shrink-0 ${isMymensingh ? 'bg-emerald-200/60 text-emerald-800' : 'bg-amber-200/60 text-amber-800'}`}>
+      <div className="p-5 rounded-3xl border border-emerald-200 bg-emerald-50/80 text-emerald-900 flex items-start gap-3.5 shadow-xs">
+        <div className="p-2.5 rounded-2xl shrink-0 bg-emerald-200/70 text-emerald-800">
           <MapPin className="w-5 h-5" />
         </div>
         <div>
           <div className="flex items-center gap-2">
             <h4 className="font-bold text-sm">
-              {isMymensingh ? (lang === 'bn' ? 'ময়মনসিংহ জোন (সক্রিয় আর্নিং হাব)' : 'Mymensingh Zone (Active Working Hub)') : `${currentUser.zone} ${lang === 'bn' ? 'জোন (ভবিষ্যৎ অনুসন্ধান ও ওয়েটলিস্ট)' : 'Zone (Farther Queries & Queue)'}`}
+              {currentUser.zone || 'Dhaka'} {lang === 'bn' ? 'জোন (সক্রিয় আর্নিং হাব)' : 'Zone (Active Working Hub)'}
             </h4>
-            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${isMymensingh ? 'bg-emerald-200 text-emerald-900' : 'bg-amber-200 text-amber-900'}`}>
-              {isMymensingh ? t.zoneWorkingActiveBadge : t.zoneWaitlistBadge}
+            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-200 text-emerald-900">
+              {lang === 'bn' ? 'সক্রিয় আর্নিং জোন' : 'Active Working Zone'}
             </span>
           </div>
-          <p className="text-xs mt-1 leading-relaxed">
-            {isMymensingh ? t.zoneMymensinghNotice : t.zoneOtherNotice}
+          <p className="text-xs mt-1 leading-relaxed text-emerald-800 font-medium">
+            {lang === 'bn' 
+              ? 'আপনার নির্বাচিত জোনে আমাদের মাইক্রো-টাস্ক ও দৈনিক উপার্জন কার্যক্রম বর্তমানে সক্রিয় ও পরিচালিত হচ্ছে।' 
+              : 'Micro-task earning and recharge operations are fully operational in your selected zone.'}
           </p>
         </div>
       </div>

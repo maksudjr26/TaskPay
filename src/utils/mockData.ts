@@ -1,16 +1,19 @@
 import { User, Task, DepositRequest, WithdrawalRequest, PaymentMethodConfig, SystemSettings, TransactionRecord, TaskSubmission } from '../types';
 
 export const AVAILABLE_ZONES = [
-  { id: 'Mymensingh', nameBn: 'ময়মনসিংহ (অফিসিয়াল আর্নিং জোন)', nameEn: 'Mymensingh (Active Working Zone)', isActiveWorkingZone: true },
-  { id: 'Dhaka', nameBn: 'ঢাকা (ভবিষ্যৎ অনুসন্ধান/কোয়ারি)', nameEn: 'Dhaka (Future Queries)', isActiveWorkingZone: false },
-  { id: 'Rongpur', nameBn: 'রংপুর (ভবিষ্যৎ অনুসন্ধান/কোয়ারি)', nameEn: 'Rongpur (Future Queries)', isActiveWorkingZone: false },
-  { id: 'Chittagong', nameBn: 'চট্টগ্রাম (ভবিষ্যৎ অনুসন্ধান/কোয়ারি)', nameEn: 'Chittagong (Future Queries)', isActiveWorkingZone: false },
-  { id: 'Rajshahi', nameBn: 'রাজশাহী (ভবিষ্যৎ অনুসন্ধান/কোয়ারি)', nameEn: 'Rajshahi (Future Queries)', isActiveWorkingZone: false },
-  { id: 'Khulna', nameBn: 'খুলনা (ভবিষ্যৎ অনুসন্ধান/কোয়ারি)', nameEn: 'Khulna (Future Queries)', isActiveWorkingZone: false },
-  { id: 'Sylhet', nameBn: 'সিলেট (ভবিষ্যৎ অনুসন্ধান/কোয়ারি)', nameEn: 'Sylhet (Future Queries)', isActiveWorkingZone: false },
-  { id: 'Barisal', nameBn: 'বরিশাল (ভবিষ্যৎ অনুসন্ধান/কোয়ারি)', nameEn: 'Barisal (Future Queries)', isActiveWorkingZone: false },
-  { id: 'Kolkata', nameBn: 'কলকাতা (ভবিষ্যৎ অনুসন্ধান/কোয়ারি)', nameEn: 'Kolkata (Future Queries)', isActiveWorkingZone: false },
-  { id: 'Other', nameBn: 'অন্যান্য (ভবিষ্যৎ অনুসন্ধান/কোয়ারি)', nameEn: 'Other (Future Queries)', isActiveWorkingZone: false }
+  { id: 'Dhaka', nameBn: 'ঢাকা (সক্রিয় আর্নিং জোন)', nameEn: 'Dhaka (Active Working Zone)', isActiveWorkingZone: true },
+  { id: 'Mymensingh', nameBn: 'ময়মনসিংহ (সক্রিয় আর্নিং জোন)', nameEn: 'Mymensingh (Active Working Zone)', isActiveWorkingZone: true },
+  { id: 'Chittagong', nameBn: 'চট্টগ্রাম (সক্রিয় আর্নিং জোন)', nameEn: 'Chittagong (Active Working Zone)', isActiveWorkingZone: true },
+  { id: 'Rongpur', nameBn: 'রংপুর (সক্রিয় আর্নিং জোন)', nameEn: 'Rongpur (Active Working Zone)', isActiveWorkingZone: true },
+  { id: 'Rajshahi', nameBn: 'রাজশাহী (সক্রিয় আর্নিং জোন)', nameEn: 'Rajshahi (Active Working Zone)', isActiveWorkingZone: true },
+  { id: 'Khulna', nameBn: 'খুলনা (সক্রিয় আর্নিং জোন)', nameEn: 'Khulna (Active Working Zone)', isActiveWorkingZone: true },
+  { id: 'Sylhet', nameBn: 'সিলেট (সক্রিয় আর্নিং জোন)', nameEn: 'Sylhet (Active Working Zone)', isActiveWorkingZone: true },
+  { id: 'Barisal', nameBn: 'বরিশাল (সক্রিয় আর্নিং জোন)', nameEn: 'Barisal (Active Working Zone)', isActiveWorkingZone: true },
+  { id: 'Gazipur', nameBn: 'গাজীপুর (সক্রিয় আর্নিং জোন)', nameEn: 'Gazipur (Active Working Zone)', isActiveWorkingZone: true },
+  { id: 'Narayanganj', nameBn: 'নারায়ণগঞ্জ (সক্রিয় আর্নিং জোন)', nameEn: 'Narayanganj (Active Working Zone)', isActiveWorkingZone: true },
+  { id: 'Comilla', nameBn: 'কুমিল্লা (সক্রিয় আর্নিং জোন)', nameEn: 'Comilla (Active Working Zone)', isActiveWorkingZone: true },
+  { id: 'Kolkata', nameBn: 'কলকাতা (সক্রিয় আর্নিং জোন)', nameEn: 'Kolkata (Active Working Zone)', isActiveWorkingZone: true },
+  { id: 'All Zones', nameBn: 'সমগ্র বাংলাদেশ (সক্রিয় জোন)', nameEn: 'All Zones (Active Working Zone)', isActiveWorkingZone: true }
 ];
 
 export const initialUsers: User[] = [

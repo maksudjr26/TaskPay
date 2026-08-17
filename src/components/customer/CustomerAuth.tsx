@@ -21,10 +21,16 @@ import {
 interface Props {
   initialMode?: 'login' | 'register';
   onSuccess?: () => void;
+  onAuthSuccess?: () => void;
 }
 
-export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess }) => {
+export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess, onAuthSuccess }) => {
   const { registerCustomer, loginCustomer, lang, t } = useApp();
+
+  const handleSuccessTrigger = () => {
+    if (onAuthSuccess) onAuthSuccess();
+    if (onSuccess) onSuccess();
+  };
 
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -33,13 +39,12 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
   const [name, setName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  const [zone, setZone] = useState<string>('Mymensingh');
+  const [zone, setZone] = useState<string>('Dhaka');
   const [referralCode, setReferralCode] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const selectedZoneObj = AVAILABLE_ZONES.find(z => z.id === zone) || AVAILABLE_ZONES[0];
-  const isMymensingh = zone === 'Mymensingh';
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +68,7 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
     setIsSubmitting(false);
 
     if (res.success) {
-      if (onSuccess) onSuccess();
+      handleSuccessTrigger();
     } else {
       setErrorMessage(res.message || (lang === 'bn' ? 'রেজিস্ট্রেশন ব্যর্থ হয়েছে' : 'Registration failed'));
     }
@@ -87,7 +92,7 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
     setIsSubmitting(false);
 
     if (success) {
-      if (onSuccess) onSuccess();
+      handleSuccessTrigger();
     } else {
       setErrorMessage(t.invalidCredentials);
     }
@@ -233,28 +238,19 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
                   <span>{t.zoneLabel} <span className="text-rose-500">*</span></span>
-                  {isMymensingh ? (
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
-                      {lang === 'bn' ? 'সক্রিয় আর্নিং জোন' : 'Active Work Zone'}
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md">
-                      {lang === 'bn' ? 'ভবিষ্যৎ কোয়ারি/অনুসন্ধান' : 'Farther Queries'}
-                    </span>
-                  )}
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>{lang === 'bn' ? 'সক্রিয় আর্নিং জোন' : 'Active Working Zone'}</span>
+                  </span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <MapPin className="w-4 h-4" />
+                    <MapPin className="w-4 h-4 text-emerald-600" />
                   </div>
                   <select
                     value={zone}
                     onChange={(e) => setZone(e.target.value)}
-                    className={`w-full pl-10 pr-4 py-2.5 border rounded-xl text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 transition-all cursor-pointer ${
-                      isMymensingh
-                        ? 'bg-emerald-50/50 border-emerald-300 text-emerald-900 focus:ring-emerald-500/20 focus:border-emerald-500'
-                        : 'bg-amber-50/50 border-amber-300 text-amber-900 focus:ring-amber-500/20 focus:border-amber-500'
-                    }`}
+                    className="w-full pl-10 pr-4 py-2.5 border border-emerald-300 bg-emerald-50/40 text-emerald-950 rounded-xl text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer"
                   >
                     {AVAILABLE_ZONES.map((z) => (
                       <option key={z.id} value={z.id} className="text-slate-800 font-semibold py-1">
@@ -264,23 +260,15 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
                   </select>
                 </div>
 
-                {/* Dynamic Zone Notice Card */}
-                <div
-                  className={`mt-2.5 p-3 rounded-xl border text-xs leading-relaxed ${
-                    isMymensingh
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                      : 'bg-amber-50 border-amber-200 text-amber-900'
-                  }`}
-                >
+                {/* Active Zone Notice Card */}
+                <div className="mt-2.5 p-3 rounded-xl border border-emerald-200 bg-emerald-50/80 text-emerald-900 text-xs leading-relaxed">
                   <div className="flex items-start gap-2">
-                    {isMymensingh ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    ) : (
-                      <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    )}
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     <div>
                       <p className="font-semibold">
-                        {isMymensingh ? t.zoneMymensinghNotice : t.zoneOtherNotice}
+                        {lang === 'bn' 
+                          ? 'আমাদের সকল জোনেই মাইক্রো-টাস্ক ও দৈনিক উপার্জন কার্যক্রম বর্তমানে সক্রিয় ও পরিচালিত হচ্ছে।' 
+                          : 'Micro-task earning operations are fully active and operational across all zones.'}
                       </p>
                     </div>
                   </div>
