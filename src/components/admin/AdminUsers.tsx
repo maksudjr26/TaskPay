@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { User } from '../../types';
 import { AVAILABLE_ZONES } from '../../utils/mockData';
+import { UserTierBadge } from '../common/UserTierBadge';
 import {
   Users,
   Search,
@@ -13,7 +14,8 @@ import {
   Phone,
   Calendar,
   X,
-  MapPin
+  MapPin,
+  Crown
 } from 'lucide-react';
 
 export const AdminUsers: React.FC = () => {
@@ -136,6 +138,7 @@ export const AdminUsers: React.FC = () => {
               <thead className="bg-slate-50 text-slate-500 uppercase font-semibold text-[11px] border-b border-slate-200">
                 <tr>
                   <th className="px-5 py-4">Customer Info</th>
+                  <th className="px-4 py-4">Tier Badge</th>
                   <th className="px-4 py-4">Zone (অঞ্চল)</th>
                   <th className="px-4 py-4">Account Status</th>
                   <th className="px-4 py-4">Balance</th>
@@ -164,6 +167,11 @@ export const AdminUsers: React.FC = () => {
                             </div>
                           </div>
                         </div>
+                      </td>
+
+                      {/* Tier Badge */}
+                      <td className="px-4 py-4">
+                        <UserTierBadge tier={user.userType || 'General'} size="xs" lang={lang} />
                       </td>
 
                       {/* Zone Column */}

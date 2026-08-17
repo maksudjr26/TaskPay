@@ -1,5 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { SiteHistoryLiveStats } from '../common/SiteHistoryLiveStats';
+import { UserTierBadge } from '../common/UserTierBadge';
 import {
   Wallet,
   ArrowUpRight,
@@ -14,7 +16,8 @@ import {
   ChevronRight,
   ShieldCheck,
   Zap,
-  Gift
+  Gift,
+  Crown
 } from 'lucide-react';
 
 interface Props {
@@ -118,9 +121,12 @@ export const CustomerDashboard: React.FC<Props> = ({ setActiveTab, onOpenTaskMod
                 <ShieldCheck className="w-7 h-7" />
               </div>
               <div>
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                  <span>{t.accountIsActive}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                    <span>{t.accountIsActive}</span>
+                  </div>
+                  <UserTierBadge tier={currentUser.userType || 'General'} size="xs" showPerkText lang={lang} />
                 </div>
                 <h2 className="text-lg sm:text-xl font-extrabold text-white mt-1">
                   {t.welcomeBack} {currentUser.name}
@@ -262,7 +268,10 @@ export const CustomerDashboard: React.FC<Props> = ({ setActiveTab, onOpenTaskMod
         </button>
       </div>
 
-      {/* 5. Featured Daily Task Spotlight */}
+      {/* 5. Live Platform Activity & Site History (Randomized daily per requirement) */}
+      <SiteHistoryLiveStats lang={lang} />
+
+      {/* 6. Featured Daily Task Spotlight */}
       {featuredTask && (
         <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-3.5">

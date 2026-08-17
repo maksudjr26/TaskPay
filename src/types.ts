@@ -1,11 +1,28 @@
 export type UserRole = 'customer' | 'admin';
 export type AccountStatus = 'active' | 'inactive';
+export type UserTier = 'General' | 'Silver' | 'Gold' | 'Platinum' | 'VIP';
 export type TaskType = 'captcha' | 'math_quiz' | 'read_article' | 'video_ad' | 'survey' | 'social_share';
-export type TransactionType = 'deposit' | 'withdrawal' | 'task_reward' | 'activation_fee' | 'admin_adjustment' | 'referral_bonus';
+export type TransactionType = 'deposit' | 'withdrawal' | 'task_reward' | 'activation_fee' | 'admin_adjustment' | 'referral_bonus' | 'tier_upgrade';
 export type RequestStatus = 'pending' | 'approved' | 'rejected';
 export type PaymentMethodCode = 'bkash' | 'nagad' | 'rocket' | 'bank';
 export type Language = 'bn' | 'en';
-export type ZoneType = 'Mymensingh' | 'Dhaka' | 'Rongpur' | 'Chittagong' | 'Rajshahi' | 'Khulna' | 'Sylhet' | 'Barisal' | 'Kolkata' | 'Other';
+export type ZoneType = 'Mymensingh' | 'Dhaka' | 'Rongpur' | 'Chittagong' | 'Rajshahi' | 'Khulna' | 'Sylhet' | 'Barisal' | 'Gazipur' | 'Narayanganj' | 'Comilla' | 'Kolkata' | 'All Zones' | 'Other';
+
+export interface DepositPackage {
+  id: string;
+  name: string;
+  nameBn: string;
+  tier: UserTier;
+  amount: number;
+  description: string;
+  descriptionBn: string;
+  badgeColor: string;
+  perks: string[];
+  perksBn: string[];
+  dailyTaskLimit: number;
+  rewardMultiplier: number;
+  isPopular?: boolean;
+}
 
 export interface User {
   id: string;
@@ -17,6 +34,7 @@ export interface User {
   zone: ZoneType | string;
   role: UserRole;
   status: AccountStatus;
+  userType: UserTier;
   balance: number;
   totalEarned: number;
   totalDeposited: number;
@@ -76,6 +94,8 @@ export interface DepositRequest {
   userName: string;
   userPhone: string;
   amount: number;
+  packageTier?: UserTier;
+  packageName?: string;
   method: PaymentMethodCode;
   methodTitle: string;
   senderNumber: string;

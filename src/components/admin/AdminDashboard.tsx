@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { SiteHistoryLiveStats } from '../common/SiteHistoryLiveStats';
 import {
   Users,
   UserCheck,
@@ -171,6 +172,9 @@ export const AdminDashboard: React.FC<Props> = ({ setActiveTab }) => {
           </div>
         </div>
       </div>
+
+      {/* Live Site History & Daily Statistics (Randomized daily per requirement) */}
+      <SiteHistoryLiveStats lang={lang} />
 
       {/* Urgent Action Queue: Pending Deposits Needing Approval */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">

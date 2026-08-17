@@ -11,7 +11,8 @@ import {
   TaskSubmission,
   Language,
   UserRole,
-  ZoneType
+  ZoneType,
+  UserTier
 } from '../types';
 import {
   initialUsers,
@@ -68,7 +69,7 @@ interface AppContextType {
   changeUserPassword: (userId: string, oldPass: string, newPass: string) => boolean;
   
   // Deposit Operations
-  submitDeposit: (method: PaymentMethodConfig['code'], amount: number, senderNumber: string, trxId: string, slipUrl?: string) => boolean;
+  submitDeposit: (method: PaymentMethodConfig['code'], amount: number, senderNumber: string, trxId: string, packageTier?: UserTier, packageName?: string, slipUrl?: string) => boolean;
   approveDeposit: (depositId: string, adminNotes?: string) => void;
   rejectDeposit: (depositId: string, reason: string) => void;
 
@@ -237,8 +238,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         name: 'Guest User',
         phone: '',
         role: 'customer',
-        zone: 'Mymensingh',
+        zone: 'Dhaka',
         status: 'inactive',
+        userType: 'General',
         balance: 0,
         totalEarned: 0,
         totalDeposited: 0,
@@ -299,6 +301,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       zone: zone || 'Dhaka',
       role: 'customer',
       status: 'inactive', // Inactive until activation recharge
+      userType: 'General', // Default user type is General
       balance: 0,
       totalEarned: 0,
       totalDeposited: 0,
@@ -392,7 +395,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Deposit Operations
   // ==========================================
 
-  const submitDeposit = (methodCode: PaymentMethodConfig['code'], amount: number, senderNumber: string, trxId: string, slipUrl?: string): boolean => {
+  const submitDeposit = (
+    methodCode: PaymentMethodConfig['code'],
+    amount: number,
+    senderNumber: string,
+    trxId: string,
+    packageTier?: UserTier,
+    packageName?: string,
+    slipUrl?: string
+  ): boolean => {
     if (!amount || amount <= 0 || !senderNumber || !trxId) {
       showToast(t.fillAllFields, 'error');
       return false;
@@ -405,6 +416,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       userName: currentUser.name,
       userPhone: currentUser.phone,
       amount,
+      packageTier,
+      packageName,
       method: methodCode,
       methodTitle: pm ? (lang === 'bn' ? pm.nameBn : pm.name) : methodCode.toUpperCase(),
       senderNumber,
@@ -417,10 +430,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newTrx: TransactionRecord = {
       id: 'trx_' + Date.now(),
       userId: currentUser.id,
-      type: 'deposit',
+      type: packageTier ? 'tier_upgrade' : 'deposit',
       amount,
-      title: `${methodCode.toUpperCase()} Deposit Request`,
-      titleBn: `${pm?.nameBn || methodCode.toUpperCase()} রিচার্জ আবেদন`,
+      title: packageTier ? `${packageTier} Tier Package Deposit (${methodCode.toUpperCase()})` : `${methodCode.toUpperCase()} Deposit Request`,
+      titleBn: packageTier ? `${packageTier} টিয়ার প্যাকেজ রিচার্জ (${pm?.nameBn || methodCode.toUpperCase()})` : `${pm?.nameBn || methodCode.toUpperCase()} রিচার্জ আবেদন`,
       status: 'pending',
       date: new Date().toLocaleString(),
       referenceId: trxId.trim().toUpperCase(),
@@ -446,11 +459,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       notes: adminNotes
     } : d));
 
-    // 2. Update user balance & auto-activate if eligible
+    // 2. Update user balance & tier promotion
+    // User promoting rules:
+    // First 500 deposit to get General
+    // More 1000 for Silver
+    // More 3000 for Gold
+    // More 5000 for Platinum
+    // More 10000 for VIP
     setUsers(prev => prev.map(u => {
       if (u.id === deposit.userId) {
         const newDeposited = (u.totalDeposited || 0) + deposit.amount;
         const newBalance = (u.balance || 0) + deposit.amount;
+        
+        let upgradedTier: UserTier = u.userType || 'General';
+
+        if (deposit.packageTier) {
+          upgradedTier = deposit.packageTier;
+        } else if (deposit.amount >= 10000 || newDeposited >= 10000) {
+          upgradedTier = 'VIP';
+        } else if (deposit.amount >= 5000 || newDeposited >= 5000) {
+          upgradedTier = 'Platinum';
+        } else if (deposit.amount >= 3000 || newDeposited >= 3000) {
+          upgradedTier = 'Gold';
+        } else if (deposit.amount >= 1000 || newDeposited >= 1500) {
+          upgradedTier = 'Silver';
+        } else if (newDeposited >= 500) {
+          upgradedTier = 'General';
+        }
+
         // Account activation rule: if new total deposited meets or exceeds minActivationAmount -> activate!
         const shouldActivate = u.status === 'inactive' && newDeposited >= settings.minActivationAmount;
 
@@ -458,6 +494,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ...u,
           balance: newBalance,
           totalDeposited: newDeposited,
+          userType: upgradedTier,
           status: shouldActivate ? 'active' : u.status
         };
       }
@@ -472,7 +509,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return t;
     }));
 
-    showToast(lang === 'bn' ? `৳${deposit.amount} ডিপোজিট অনুমোদিত ও ব্যালেন্স যুক্ত হয়েছে!` : `Deposit ৳${deposit.amount} approved and balance updated!`, 'success');
+    showToast(
+      lang === 'bn' 
+        ? `৳${deposit.amount} ডিপোজিট অনুমোদিত হয়েছে এবং মেম্বারশিপ আপডেট করা হয়েছে!` 
+        : `Deposit of ৳${deposit.amount} approved and tier updated!`, 
+      'success'
+    );
     triggerConfetti();
   };
 
@@ -617,6 +659,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: t.taskLimitReached };
     }
 
+    // Tier-based reward multiplier and dynamic task daily limit
+    const tierMultiplier = currentUser.userType === 'VIP' ? 2.0 : currentUser.userType === 'Platinum' ? 1.6 : currentUser.userType === 'Gold' ? 1.35 : currentUser.userType === 'Silver' ? 1.15 : 1.0;
+    const finalReward = Math.round(task.reward * tierMultiplier * 10) / 10;
+
     // Record submission
     const newSubmission: TaskSubmission = {
       id: 'sub_' + Date.now(),
@@ -626,7 +672,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       userId: currentUser.id,
       userName: currentUser.name,
       userPhone: currentUser.phone,
-      reward: task.reward,
+      reward: finalReward,
       completedAt: new Date().toLocaleString(),
       status: 'approved', // instant credit for standard captcha/quizzes
       proofData: proofData || 'Completed correctly'
@@ -637,8 +683,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (u.id === currentUser.id) {
         return {
           ...u,
-          balance: u.balance + task.reward,
-          totalEarned: (u.totalEarned || 0) + task.reward,
+          balance: u.balance + finalReward,
+          totalEarned: (u.totalEarned || 0) + finalReward,
           tasksCompletedCount: (u.tasksCompletedCount || 0) + 1
         };
       }
@@ -650,9 +696,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: 'trx_' + Date.now(),
       userId: currentUser.id,
       type: 'task_reward',
-      amount: task.reward,
-      title: `${task.title} Reward`,
-      titleBn: `${task.titleBn} রিওয়ার্ড`,
+      amount: finalReward,
+      title: `${task.title} Reward (${currentUser.userType || 'General'} Tier)`,
+      titleBn: `${task.titleBn} রিওয়ার্ড (${currentUser.userType || 'General'} টিয়ার)`,
       status: 'completed',
       date: new Date().toLocaleString(),
       referenceId: task.id
@@ -662,8 +708,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTransactions(prev => [newTrx, ...prev]);
     triggerConfetti();
 
-    showToast(lang === 'bn' ? `অভিনন্দন! ৳${task.reward} আপনার ব্যালেন্সে যোগ হয়েছে` : `Congratulations! ৳${task.reward} added to your balance`, 'success');
-    return { success: true, message: 'Task completed successfully', rewardEarned: task.reward };
+    showToast(
+      lang === 'bn' 
+        ? `অভিনন্দন! ৳${finalReward} আপনার ব্যালেন্সে যোগ হয়েছে${tierMultiplier > 1 ? ` (${currentUser.userType} বুস্টার রেট)` : ''}` 
+        : `Congratulations! ৳${finalReward} added to your balance${tierMultiplier > 1 ? ` (${currentUser.userType} booster)` : ''}`, 
+      'success'
+    );
+    return { success: true, message: 'Task completed successfully', rewardEarned: finalReward };
   };
 
   const createTask = (taskData: Omit<Task, 'id'>) => {

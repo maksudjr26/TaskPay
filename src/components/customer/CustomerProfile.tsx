@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { UserTierBadge, TIER_CONFIG } from '../common/UserTierBadge';
+import { DEPOSIT_PACKAGES } from '../../utils/mockData';
+import { UserTier } from '../../types';
 import {
   User,
   Phone,
@@ -17,11 +20,15 @@ import {
   CheckCircle2,
   MapPin,
   LogOut,
-  Info
+  Info,
+  Crown,
+  Sparkles,
+  ArrowRight,
+  TrendingUp
 } from 'lucide-react';
 
 export const CustomerProfile: React.FC = () => {
-  const { currentUser, t, lang, setLanguage, settings, changeUserPassword, showToast, logoutCustomer } = useApp();
+  const { currentUser, t, lang, setLanguage, settings, changeUserPassword, showToast, logoutCustomer, setActiveTab } = useApp();
 
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
@@ -59,15 +66,20 @@ export const CustomerProfile: React.FC = () => {
   };
 
   const isInactive = currentUser.status === 'inactive';
-  const isMymensingh = currentUser.zone === 'Mymensingh';
+  const currentTier: UserTier = currentUser.userType || 'General';
 
   return (
     <div className="space-y-6 pb-12">
       {/* Profile Header Card */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center sm:items-start justify-between gap-5">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
-            {currentUser.name ? currentUser.name.charAt(0) : 'U'}
+          <div className="relative">
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
+              {currentUser.name ? currentUser.name.charAt(0) : 'U'}
+            </div>
+            <div className="absolute -bottom-2 -right-2">
+              <UserTierBadge tier={currentTier} size="xs" lang={lang} />
+            </div>
           </div>
 
           <div className="space-y-2 text-center sm:text-left flex-1">
@@ -75,6 +87,7 @@ export const CustomerProfile: React.FC = () => {
               <h2 className="text-xl sm:text-2xl font-black text-slate-900">
                 {currentUser.name}
               </h2>
+              <UserTierBadge tier={currentTier} size="sm" showPerkText lang={lang} />
               <span
                 className={`text-xs px-3 py-1 rounded-full font-bold border flex items-center gap-1 ${
                   !isInactive
@@ -103,7 +116,7 @@ export const CustomerProfile: React.FC = () => {
               </span>
               <span className="flex items-center gap-1 font-bold text-slate-700">
                 <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                {t.zoneLabel}: {currentUser.zone || 'Mymensingh'}
+                {t.zoneLabel}: {currentUser.zone || 'Dhaka'}
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
@@ -121,6 +134,91 @@ export const CustomerProfile: React.FC = () => {
           <LogOut className="w-4 h-4 text-rose-600" />
           <span>{t.logout}</span>
         </button>
+      </div>
+
+      {/* User Tier & Promoting Levels Showcase Card */}
+      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-200 text-xs font-bold mb-1.5">
+              <Crown className="w-3.5 h-3.5 text-amber-600" />
+              <span>{lang === 'bn' ? 'মেম্বারশিপ লেভেল ও প্রমোশন' : 'Tier Badges & Promotion System'}</span>
+            </div>
+            <h3 className="text-lg font-black text-slate-900">
+              {lang === 'bn' ? 'ইউজার টাইপ ও বিশেষ সুবিধাসমূহ' : 'User Types & Tier Benefits'}
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {lang === 'bn'
+                ? 'ডিপোজিটের মাধ্যমে মেম্বারশিপ লেভেল আপগ্রেড করে প্রতিটি টাস্কে দ্বিগুণ পর্যন্ত রিওয়ার্ড উপভোগ করুন।'
+                : 'Upgrade your tier via fixed package deposit to boost task rewards up to 2.0x.'}
+            </p>
+          </div>
+
+          <button
+            onClick={() => setActiveTab('deposit')}
+            className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold rounded-xl shadow-md hover:from-emerald-700 hover:to-teal-700 transition-all flex items-center gap-2 cursor-pointer shrink-0"
+          >
+            <span>{lang === 'bn' ? 'টিয়ার আপগ্রেড করুন' : 'Upgrade Tier Now'}</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* All 5 Badges Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          {DEPOSIT_PACKAGES.map((pkg) => {
+            const isUserCurrent = currentTier === pkg.tier;
+            const config = TIER_CONFIG[pkg.tier];
+            const Icon = config.icon;
+
+            return (
+              <div
+                key={pkg.id}
+                className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between ${
+                  isUserCurrent
+                    ? 'border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20 shadow-sm'
+                    : 'border-slate-200/80 bg-slate-50/50'
+                }`}
+              >
+                {isUserCurrent && (
+                  <div className="absolute -top-2.5 right-3 bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-xs uppercase">
+                    {lang === 'bn' ? 'আপনার বর্তমান ব্যাজ' : 'Your Badge'}
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <UserTierBadge tier={pkg.tier} size="xs" lang={lang} />
+                    <span className="text-[11px] font-mono font-bold text-slate-600">
+                      ৳{pkg.amount}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-xs font-black text-slate-800 flex items-center gap-1">
+                      <TrendingUp className="w-3 h-3 text-emerald-600" />
+                      <span>{pkg.rewardMultiplier}x {lang === 'bn' ? 'আর্নিং রেট' : 'Earn Multiplier'}</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-medium">
+                      {lang === 'bn' ? `দৈনিক সীমা: ${pkg.dailyTaskLimit}টি টাস্ক` : `Daily limit: ${pkg.dailyTaskLimit} tasks`}
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-slate-600 leading-relaxed font-medium line-clamp-2">
+                    {lang === 'bn' ? pkg.descriptionBn : pkg.description}
+                  </p>
+                </div>
+
+                <div className="mt-3 pt-2.5 border-t border-slate-100">
+                  <span className="text-[10px] text-slate-500 font-semibold block">
+                    {pkg.tier === 'General'
+                      ? (lang === 'bn' ? 'শুরুর জন্য ৳৫০০ রিচার্জ' : 'First 500 deposit')
+                      : (lang === 'bn' ? `আরও ৳${pkg.amount} ডিপোজিট` : `More ৳${pkg.amount} deposit`)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Zone Status Announcement Card */}
@@ -302,3 +400,4 @@ export const CustomerProfile: React.FC = () => {
     </div>
   );
 };
+

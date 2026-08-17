@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { UserTierBadge } from '../common/UserTierBadge';
 import {
   ArrowDownLeft,
   CheckCircle2,
@@ -12,7 +13,8 @@ import {
   CreditCard,
   ShieldCheck,
   User,
-  Sparkles
+  Sparkles,
+  Crown
 } from 'lucide-react';
 
 export const AdminDeposits: React.FC = () => {
@@ -115,6 +117,7 @@ export const AdminDeposits: React.FC = () => {
             <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
               <tr>
                 <th className="p-4">Customer Details</th>
+                <th className="p-4">Package / Tier</th>
                 <th className="p-4">Payment Method</th>
                 <th className="p-4">Amount</th>
                 <th className="p-4">Sender & TrxID</th>
@@ -126,7 +129,7 @@ export const AdminDeposits: React.FC = () => {
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredDeposits.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400 font-medium">
+                  <td colSpan={8} className="p-8 text-center text-slate-400 font-medium">
                     No deposit requests found under this filter.
                   </td>
                 </tr>
@@ -136,6 +139,14 @@ export const AdminDeposits: React.FC = () => {
                     <td className="p-4">
                       <div className="font-bold text-slate-900">{dep.userName}</div>
                       <div className="text-xs text-slate-500">{dep.userPhone}</div>
+                    </td>
+                    <td className="p-4">
+                      <div className="space-y-1">
+                        <UserTierBadge tier={dep.packageTier || (dep.amount >= 10000 ? 'VIP' : dep.amount >= 5000 ? 'Platinum' : dep.amount >= 3000 ? 'Gold' : dep.amount >= 1000 ? 'Silver' : 'General')} size="xs" lang={lang} />
+                        {dep.packageName && (
+                          <div className="text-[10px] text-slate-500 font-medium">{dep.packageName}</div>
+                        )}
+                      </div>
                     </td>
                     <td className="p-4">
                       <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold uppercase text-[11px] border border-emerald-200/50">
