@@ -1,4 +1,4 @@
-import { User, Task, DepositRequest, WithdrawalRequest, PaymentMethodConfig, SystemSettings, TransactionRecord, TaskSubmission, DepositPackage, UserTier } from '../types';
+import { User, Task, DepositRequest, WithdrawalRequest, PaymentMethodConfig, SystemSettings, TransactionRecord, TaskSubmission, DepositPackage, UserTier, TierAnnouncement, AppNotification } from '../types';
 
 export const AVAILABLE_ZONES = [
   { id: 'Dhaka', nameBn: 'ঢাকা (সক্রিয় আর্নিং জোন)', nameEn: 'Dhaka (Active Working Zone)', isActiveWorkingZone: true },
@@ -37,13 +37,13 @@ export const DEPOSIT_PACKAGES: DepositPackage[] = [
     nameBn: 'সিলভার বুস্টার মেম্বারশিপ',
     tier: 'Silver',
     amount: 1000,
-    description: 'Promote to Silver tier with +15% reward bonus and 10 daily tasks.',
-    descriptionBn: 'সিলভার টিয়ারে প্রমোশন, ১৫% অতিরিক্ত রিওয়ার্ড বোনাস ও ১০টি দৈনিক টাস্ক।',
+    description: 'Promote to Silver tier with +25% reward bonus (1.25x) and 10 daily tasks.',
+    descriptionBn: 'সিলভার টিয়ারে প্রমোশন, ২৫% অতিরিক্ত রিওয়ার্ড বোনাস (১.২৫x) ও ১০টি দৈনিক টাস্ক।',
     badgeColor: 'slate',
-    perks: ['Silver Verified Badge', '10 Tasks Daily Limit', '+15% Reward Booster (1.15x)', 'Fast Withdrawal Queue'],
-    perksBn: ['সিলভার ভেরিফাইড ব্যাজ', 'দৈনিক ১০টি টাস্ক লিমিট', '+১৫% রিওয়ার্ড বুস্টার (১.১৫x)', 'দ্রুত পেমেন্ট অনুমোদন'],
+    perks: ['Silver Verified Badge', '10 Tasks Daily Limit', '+25% Reward Booster (1.25x)', 'Fast Withdrawal Queue'],
+    perksBn: ['সিলভার ভেরিফাইড ব্যাজ', 'দৈনিক ১০টি টাস্ক লিমিট', '+২৫% রিওয়ার্ড বুস্টার (১.২৫x)', 'দ্রুত পেমেন্ট অনুমোদন'],
     dailyTaskLimit: 10,
-    rewardMultiplier: 1.15,
+    rewardMultiplier: 1.25,
   },
   {
     id: 'pkg_gold_3000',
@@ -51,13 +51,13 @@ export const DEPOSIT_PACKAGES: DepositPackage[] = [
     nameBn: 'গোল্ড প্রো মেম্বারশিপ',
     tier: 'Gold',
     amount: 3000,
-    description: 'Promote to Gold tier with +35% reward booster and 20 daily tasks.',
-    descriptionBn: 'গোল্ড টিয়ারে প্রমোশন, ৩৫% অতিরিক্ত আর্নিং বুস্টার ও ২০টি দৈনিক টাস্ক।',
+    description: 'Promote to Gold tier with +75% reward booster (1.75x) and 20 daily tasks.',
+    descriptionBn: 'গোল্ড টিয়ারে প্রমোশন, ৭৫% অতিরিক্ত আর্নিং বুস্টার (১.৭৫x) ও ২০টি দৈনিক টাস্ক।',
     badgeColor: 'amber',
-    perks: ['Gold Shining Badge', '20 Tasks Daily Limit', '+35% Reward Booster (1.35x)', 'Priority Processing'],
-    perksBn: ['গোল্ড গোল্ডেন ব্যাজ', 'দৈনিক ২০টি টাস্ক লিমিট', '+৩৫% রিওয়ার্ড বুস্টার (১.৩৫x)', 'অগ্রাধিকার ভিত্তিতে উইথড্রল'],
+    perks: ['Gold Shining Badge', '20 Tasks Daily Limit', '+75% Reward Booster (1.75x)', 'Priority Processing'],
+    perksBn: ['গোল্ড গোল্ডেন ব্যাজ', 'দৈনিক ২০টি টাস্ক লিমিট', '+৭৫% রিওয়ার্ড বুস্টার (১.৭৫x)', 'অগ্রাধিকার ভিত্তিতে উইথড্রল'],
     dailyTaskLimit: 20,
-    rewardMultiplier: 1.35,
+    rewardMultiplier: 1.75,
     isPopular: true
   },
   {
@@ -66,13 +66,13 @@ export const DEPOSIT_PACKAGES: DepositPackage[] = [
     nameBn: 'প্লাটিনাম মাস্টার মেম্বারশিপ',
     tier: 'Platinum',
     amount: 5000,
-    description: 'Promote to Platinum tier with +60% reward bonus and 35 daily tasks.',
-    descriptionBn: 'প্লাটিনাম টিয়ারে প্রমোশন, ৬০% বোনাস রিওয়ার্ড ও ৩৫টি দৈনিক টাস্ক।',
+    description: 'Promote to Platinum tier with +125% super reward (2.25x) and 35 daily tasks.',
+    descriptionBn: 'প্লাটিনাম টিয়ারে প্রমোশন, ১২৫% বোনাস সুপার রিওয়ার্ড (২.২৫x) ও ৩৫টি দৈনিক টাস্ক।',
     badgeColor: 'cyan',
-    perks: ['Platinum Diamond Badge', '35 Tasks Daily Limit', '+60% Reward Booster (1.60x)', 'Dedicated VIP Support'],
-    perksBn: ['প্লাটিনাম ডায়মন্ড ব্যাজ', 'দৈনিক ৩৫টি টাস্ক লিমিট', '+৬০% রিওয়ার্ড বুস্টার (১.৬০x)', 'ডেডিকেটেড ২৪/৭ সাপোর্ট'],
+    perks: ['Platinum Diamond Badge', '35 Tasks Daily Limit', '+125% Super Booster (2.25x)', 'Dedicated VIP Support'],
+    perksBn: ['প্লাটিনাম ডায়মন্ড ব্যাজ', 'দৈনিক ৩৫টি টাস্ক লিমিট', '+১২৫% রিওয়ার্ড বুস্টার (২.২৫x)', 'ডেডিকেটেড ২৪/৭ সাপোর্ট'],
     dailyTaskLimit: 35,
-    rewardMultiplier: 1.6,
+    rewardMultiplier: 2.25,
   },
   {
     id: 'pkg_vip_10000',
@@ -80,13 +80,112 @@ export const DEPOSIT_PACKAGES: DepositPackage[] = [
     nameBn: 'রয়্যাল ভিআইপি সুপ্রিম মেম্বারশিপ',
     tier: 'VIP',
     amount: 10000,
-    description: 'Ultimate VIP status with 2.0x DOUBLE rewards, 60 daily tasks & instant zero-fee withdrawals.',
-    descriptionBn: 'সর্বোচ্চ ভিআইপি স্ট্যাটাস, ডাবল ২.০x রিওয়ার্ড (২০০%), ৬০টি দৈনিক টাস্ক ও ইনস্ট্যান্ট উইথড্রল।',
+    description: 'Ultimate VIP status with 3.0x TRIPLE rewards, 60 daily tasks & instant zero-fee withdrawals.',
+    descriptionBn: 'সর্বোচ্চ ভিআইপি স্ট্যাটাস, ৩.০x ট্রিপল রিওয়ার্ড (৩০০%), ৬০টি দৈনিক টাস্ক ও ইনস্ট্যান্ট উইথড্রল।',
     badgeColor: 'purple',
-    perks: ['Royal VIP Crown Badge', '60 Tasks Daily Limit', '2.0x DOUBLE Task Rewards', 'Instant Zero-Fee Payouts'],
-    perksBn: ['রয়্যাল ভিআইপি ক্রাউন ব্যাজ', 'দৈনিক ৬০টি টাস্ক লিমিট', '২.০x ডাবল রিওয়ার্ড রেট (২০০%)', 'ইনস্ট্যান্ট জিরো-ফি উইথড্রল'],
+    perks: ['Royal VIP Crown Badge', '60 Tasks Daily Limit', '3.0x TRIPLE Task Rewards', 'Instant Zero-Fee Payouts'],
+    perksBn: ['রয়্যাল ভিআইপি ক্রাউন ব্যাজ', 'দৈনিক ৬০টি টাস্ক লিমিট', '৩.০x ট্রিপল রিওয়ার্ড রেট (৩০০%)', 'ইনস্ট্যান্ট জিরো-ফি উইথড্রল'],
     dailyTaskLimit: 60,
-    rewardMultiplier: 2.0,
+    rewardMultiplier: 3.0,
+  }
+];
+
+export const initialAnnouncements: TierAnnouncement[] = [
+  {
+    id: 'ann_guest_1',
+    target: 'guest',
+    title: 'Welcome to TaskPay Bangladesh',
+    titleBn: 'TaskPay বাংলাদেশ প্ল্যাটফর্মে আপনাকে স্বাগতম!',
+    message: 'Join over 24,000 active micro-earners. Sign up today and verify your active zone to start earning daily task income.',
+    messageBn: '২৪,০০০+ সক্রিয় সদস্যদের সাথে যুক্ত হোন। আজই একাউন্ট খুলে আপনার আর্নিং জোন থেকে দৈনিক মাইক্রো-টাস্কে উপার্জন শুরু করুন।',
+    type: 'info',
+    badgeText: 'Guest Notice',
+    badgeTextBn: 'নতুন ভিজিটর',
+    actionText: 'Create Free Account',
+    actionTextBn: 'একাউন্ট তৈরি করুন',
+    actionTab: 'register',
+    isActive: true,
+    createdAt: '2026-08-17'
+  },
+  {
+    id: 'ann_general_1',
+    target: 'General',
+    title: 'Boost to Silver Tier for +25% Extra Income!',
+    titleBn: '🚀 সিলভার মেম্বারশিপে আপগ্রেড করে পান ১.২৫x (২৫% বাড়তি) রিওয়ার্ড!',
+    message: 'Deposit ৳1,000 fixed package to unlock 10 daily tasks and a 1.25x reward rate across all micro-tasks.',
+    messageBn: 'মাত্র ১০০০ টাকার সিলভার প্যাকেজ রিচার্জ করে আনলক করুন দৈনিক ১০টি টাস্ক এবং ১.২৫x উচ্চ হারে টাস্ক রিওয়ার্ড!',
+    type: 'promotion',
+    badgeText: 'Upgrade for Silver',
+    badgeTextBn: 'সিলভার প্রমোশন',
+    actionText: 'Upgrade to Silver',
+    actionTextBn: 'সিলভারে আপগ্রেড করুন',
+    actionTab: 'deposit',
+    isActive: true,
+    createdAt: '2026-08-17'
+  },
+  {
+    id: 'ann_silver_1',
+    target: 'Silver',
+    title: 'Gold Pro Elite Upgrade Available (+75% Booster)!',
+    titleBn: '⭐ গোল্ড প্রো মেম্বারশিপে আপগ্রেড করে ১.৭৫x রিওয়ার্ড রেট উপভোগ করুন!',
+    message: 'Step up to Gold Pro with ৳3,000 package for 20 daily tasks and prioritized fast cashout processing.',
+    messageBn: 'গোল্ড প্রো মেম্বারশিপে আপগ্রেড করে দৈনিক ২০টি টাস্ক এবং ১.৭৫x (৭৫% অতিরিক্ত) উচ্চ রিওয়ার্ড ও দ্রুত উইথড্র পান।',
+    type: 'promotion',
+    badgeText: 'Silver to Gold',
+    badgeTextBn: 'গোল্ড প্রমোশন',
+    actionText: 'Upgrade to Gold',
+    actionTextBn: 'গোল্ডে আপগ্রেড করুন',
+    actionTab: 'deposit',
+    isActive: true,
+    createdAt: '2026-08-17'
+  },
+  {
+    id: 'ann_gold_1',
+    target: 'Gold',
+    title: 'Level Up to Platinum Master (2.25x Rewards)!',
+    titleBn: '🏆 প্লাটিনাম মাস্টার টিয়ারে আপগ্রেড: ২.২৫x সুপার আর্নিং রেট!',
+    message: 'Recharge ৳5,000 Platinum Package to unlock 35 tasks daily and 2.25x massive earnings per task.',
+    messageBn: 'প্লাটিনাম প্যাকেজে আপগ্রেড করে ৩৫টি দৈনিক টাস্ক এবং প্রতি টাস্কে ২.২৫x বিশাল আর্নিং রেট উপভোগ করুন।',
+    type: 'promotion',
+    badgeText: 'Platinum Pro',
+    badgeTextBn: 'প্লাটিনাম অফার',
+    actionText: 'Upgrade to Platinum',
+    actionTextBn: 'প্লাটিনামে আপগ্রেড করুন',
+    actionTab: 'deposit',
+    isActive: true,
+    createdAt: '2026-08-17'
+  },
+  {
+    id: 'ann_platinum_1',
+    target: 'Platinum',
+    title: 'Unlock Royal VIP Supreme: 3.0x TRIPLE Rewards!',
+    titleBn: '💎 রয়্যাল ভিআইপি সুপ্রিম: ৩.০x ট্রিপল (৩ গুণ) রিওয়ার্ড ও ৬০টি টাস্ক!',
+    message: 'Deposit ৳10,000 VIP Package for ultimate 3.0x maximum rewards, 60 tasks daily and instant zero-fee withdrawals.',
+    messageBn: 'সর্বোচ্চ ভিআইপি প্যাকেজে আপগ্রেড করুন—পান ৩.০x ট্রিপল রিওয়ার্ড, ৬০টি দৈনিক টাস্ক ও ইনস্ট্যান্ট উইথড্রল!',
+    type: 'celebration',
+    badgeText: 'VIP Supreme',
+    badgeTextBn: 'ভিআইপি স্পেশাল',
+    actionText: 'Activate VIP Supreme',
+    actionTextBn: 'ভিআইপি সক্রিয় করুন',
+    actionTab: 'deposit',
+    isActive: true,
+    createdAt: '2026-08-17'
+  },
+  {
+    id: 'ann_vip_1',
+    target: 'VIP',
+    title: 'Royal VIP Supreme Privilege Active',
+    titleBn: '👑 রয়্যাল ভিআইপি সুবিধা সক্রিয়: ৩.০x ট্রিপল আর্নিং রেট!',
+    message: 'You are enjoying 3.0x maximum rewards, 60 tasks per day, dedicated VIP support and priority express cashouts.',
+    messageBn: 'আপনি সর্বোচ্চ ৩.০x ট্রিপল রিওয়ার্ড রেট ও দৈনিক ৬০টি টাস্ক উপভোগ করছেন। উইথড্র স্বয়ংক্রিয়ভাবে দ্রুত প্রসেস হয়।',
+    type: 'celebration',
+    badgeText: 'VIP Active',
+    badgeTextBn: 'ভিআইপি মেম্বার',
+    actionText: 'Earn Today',
+    actionTextBn: 'টাস্ক সম্পন্ন করুন',
+    actionTab: 'tasks',
+    isActive: true,
+    createdAt: '2026-08-17'
   }
 ];
 
@@ -103,6 +202,8 @@ export const initialUsers: User[] = [
     status: 'active',
     userType: 'VIP',
     balance: 0,
+    depositBalance: 0,
+    taskBalance: 0,
     totalEarned: 0,
     totalDeposited: 0,
     totalWithdrawn: 0,
@@ -353,3 +454,32 @@ export const initialWithdrawals: WithdrawalRequest[] = [];
 export const initialTransactions: TransactionRecord[] = [];
 
 export const initialSubmissions: TaskSubmission[] = [];
+
+export const initialNotifications: AppNotification[] = [
+  {
+    id: 'notif_welcome_admin',
+    target: 'admin',
+    category: 'system',
+    type: 'info',
+    title: 'Admin Control Center Ready',
+    titleBn: 'অ্যাডমিন নিয়ন্ত্রণ কেন্দ্র প্রস্তুত',
+    message: 'Welcome to TaskPay Admin Portal. You will receive live alerts for deposits, withdrawals, task proofs, and registrations here.',
+    messageBn: 'TaskPay অ্যাডমিন প্যানেলে স্বাগতম। ডিপোজিট, উইথড্রল, টাস্ক ও রেজিস্ট্রেশনের সকল রিকোয়েস্ট এলার্ট এখানে দেখতে পাবেন।',
+    read: false,
+    createdAt: new Date().toLocaleDateString(),
+    actionTab: 'admin_dashboard'
+  },
+  {
+    id: 'notif_welcome_cust',
+    target: 'customer',
+    category: 'system',
+    type: 'success',
+    title: 'Welcome to TaskPay!',
+    titleBn: 'TaskPay-তে স্বাগতম!',
+    message: 'Start completing daily micro-tasks, earn rewards, and upgrade your tier for up to 3.0x bonus multiplier.',
+    messageBn: 'দৈনিক মাইক্রো-টাস্ক পূরণ করে উপার্জন শুরু করুন এবং ৩.০ গুণ পর্যন্ত বোনাস পেতে টিয়ার আপগ্রেড করুন।',
+    read: false,
+    createdAt: new Date().toLocaleDateString(),
+    actionTab: 'tasks'
+  }
+];

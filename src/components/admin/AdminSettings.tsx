@@ -11,16 +11,40 @@ import {
   Mail,
   AlertTriangle,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  KeyRound,
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export const AdminSettings: React.FC = () => {
-  const { settings, updateSystemSettings, lang, t, showToast } = useApp();
+  const { settings, updateSystemSettings, adminPassword, changeAdminPassword, lang, t, showToast } = useApp();
   const [formData, setFormData] = useState<SystemSettings>({ ...settings });
+
+  // Admin password change form
+  const [oldPass, setOldPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
+  const [showPass, setShowPass] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateSystemSettings(formData);
+  };
+
+  const handlePasswordChange = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPass !== confirmPass) {
+      showToast(lang === 'bn' ? 'নতুন পাসওয়ার্ড দুটি মিলছে না' : 'New passwords do not match', 'error');
+      return;
+    }
+    const success = changeAdminPassword(oldPass, newPass);
+    if (success) {
+      setOldPass('');
+      setNewPass('');
+      setConfirmPass('');
+    }
   };
 
   return (
@@ -33,14 +57,103 @@ export const AdminSettings: React.FC = () => {
             <span>Platform Rules & Controls</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black">
-            {lang === 'bn' ? 'সিস্টেম পলিসি ও একাউন্ট সক্রিয়করণ কনফিগারেশন' : 'System Rules & Account Activation Config'}
+            {lang === 'bn' ? 'সিস্টেম পলিসি, অ্যাডমিন পাসওয়ার্ড ও সেটিংস' : 'System Rules, Admin Security & Config'}
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
             {lang === 'bn'
-              ? 'ন্যূনতম রিচার্জের পরিমাণ নির্ধারণ করুন যা জমা হলে গ্রাহকের একাউন্ট স্বয়ংক্রিয়ভাবে একটিভ হবে।'
-              : 'Set minimum activation deposit threshold, withdrawal constraints, and announcements.'}
+              ? 'অ্যাডমিন পাসওয়ার্ড পরিবর্তন, রিচার্জ সক্রিয়করণ থ্রেশহোল্ড ও সিস্টেম পলিসি পরিবর্তন করুন।'
+              : 'Update admin credentials, activation deposit thresholds, withdrawal constraints, and announcements.'}
           </p>
         </div>
+      </div>
+
+      {/* Admin Password Change Card */}
+      <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-indigo-500/30 shadow-xl space-y-6">
+        <div className="flex items-center justify-between pb-3 border-b border-indigo-500/30">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+              <KeyRound className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-white">
+                {lang === 'bn' ? 'অ্যাডমিন সিকিউরিটি ও পাসওয়ার্ড পরিবর্তন' : 'Admin Security & Password Management'}
+              </h3>
+              <p className="text-xs text-indigo-200/70">
+                {lang === 'bn' ? `ডিফল্ট: User: admin | বর্তমান পাসওয়ার্ড: "${adminPassword}"` : `Default: User: admin | Current Password: "${adminPassword}"`}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowPass(!showPass)}
+            className="text-xs text-indigo-300 hover:text-white flex items-center gap-1 bg-indigo-900/60 px-3 py-1.5 rounded-xl border border-indigo-700/50 cursor-pointer"
+          >
+            {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            <span>{showPass ? 'Hide' : 'Show'}</span>
+          </button>
+        </div>
+
+        <form onSubmit={handlePasswordChange} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-indigo-200 mb-1">
+              {lang === 'bn' ? 'বর্তমান পাসওয়ার্ড (Current)' : 'Current Password'}
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-indigo-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type={showPass ? 'text' : 'password'}
+                value={oldPass}
+                onChange={(e) => setOldPass(e.target.value)}
+                placeholder="e.g. admin1"
+                className="w-full pl-9 pr-3 py-2.5 bg-slate-800/90 border border-indigo-500/40 rounded-xl text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-indigo-200 mb-1">
+              {lang === 'bn' ? 'নতুন পাসওয়ার্ড (New)' : 'New Password'}
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-indigo-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type={showPass ? 'text' : 'password'}
+                value={newPass}
+                onChange={(e) => setNewPass(e.target.value)}
+                placeholder="Enter new password"
+                className="w-full pl-9 pr-3 py-2.5 bg-slate-800/90 border border-indigo-500/40 rounded-xl text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-indigo-200 mb-1">
+              {lang === 'bn' ? 'পুনরায় নতুন পাসওয়ার্ড' : 'Confirm Password'}
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Lock className="w-4 h-4 text-indigo-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  value={confirmPass}
+                  onChange={(e) => setConfirmPass(e.target.value)}
+                  placeholder="Repeat new password"
+                  className="w-full pl-9 pr-3 py-2.5 bg-slate-800/90 border border-indigo-500/40 rounded-xl text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-4 py-2.5 bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs rounded-xl transition-all shadow-md shrink-0 cursor-pointer"
+              >
+                {lang === 'bn' ? 'পরিবর্তন' : 'Update'}
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -208,3 +321,4 @@ export const AdminSettings: React.FC = () => {
     </div>
   );
 };
+

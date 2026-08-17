@@ -13,13 +13,13 @@ import { CustomerAuth } from './components/customer/CustomerAuth';
 import { TaskInteractionModal } from './components/customer/TaskInteractionModal';
 
 import { AdminHeader } from './components/admin/AdminHeader';
-import { AdminSidebar } from './components/admin/AdminSidebar';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminUsers } from './components/admin/AdminUsers';
 import { AdminTasks } from './components/admin/AdminTasks';
 import { AdminSubmissions } from './components/admin/AdminSubmissions';
 import { AdminDeposits } from './components/admin/AdminDeposits';
 import { AdminWithdrawals } from './components/admin/AdminWithdrawals';
+import { AdminAnnouncements } from './components/admin/AdminAnnouncements';
 import { AdminPayments } from './components/admin/AdminPayments';
 import { AdminSettings } from './components/admin/AdminSettings';
 import { AdminReports } from './components/admin/AdminReports';
@@ -40,12 +40,11 @@ import {
   Tablet,
   Smartphone,
   Layers,
-  ArrowRightLeft,
   Check,
   Zap,
   LogOut,
-  MapPin,
-  LogIn
+  LogIn,
+  KeyRound
 } from 'lucide-react';
 
 type ViewportMode = 'responsive' | 'desktop' | 'tablet' | 'mobile';
@@ -60,7 +59,6 @@ const MainLayout: React.FC = () => {
     isAdminLoggedIn,
     logoutCustomer,
     logoutAdmin,
-    quickSwitchUser,
     lang,
     setLanguage,
     t,
@@ -72,78 +70,35 @@ const MainLayout: React.FC = () => {
 
   const [customerActiveTab, setCustomerActiveTab] = useState<string>('dashboard');
   const [adminActiveTab, setAdminActiveTab] = useState<string>('admin_dashboard');
-  const [adminSidebarOpen, setAdminSidebarOpen] = useState<boolean>(false);
   const [activeTaskModal, setActiveTaskModal] = useState<Task | null>(null);
   const [viewportMode, setViewportMode] = useState<ViewportMode>('responsive');
 
-  const customerAccounts = users.filter(u => u.role === 'customer');
-  const pendingDepositsCount = deposits.filter(d => d.status === 'pending').length;
-
   return (
     <div className="min-h-screen bg-slate-200/70 text-slate-800 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
-      {/* 1. Global Website System Preview & Control Toolbar */}
+      {/* 1. Global Platform System Header Toolbar */}
       <aside
-        aria-label="System Preview Toolbar"
-        className="bg-slate-950 text-slate-200 text-xs py-2.5 px-3 sm:px-6 border-b border-slate-800 sticky top-0 z-50 shadow-md backdrop-blur-md"
+        aria-label="Platform Top Header"
+        className="bg-slate-950 text-slate-200 text-xs py-2 px-3 sm:px-6 border-b border-slate-800 sticky top-0 z-50 shadow-md backdrop-blur-md"
       >
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          {/* Left: Role Switcher & App Title */}
+          {/* Left: App Brand & Status */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 font-black text-white text-xs sm:text-sm tracking-tight">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
+            <div className="flex items-center gap-2 font-black text-white text-xs sm:text-sm tracking-tight">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent text-sm sm:text-base">
                 TaskPay
               </span>
-              <span className="px-1.5 py-0.5 rounded-md bg-slate-800 text-[10px] text-slate-300 font-bold border border-slate-700">
-                System Live
+              <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[10px] text-slate-300 font-bold border border-slate-700">
+                Bangladesh Live
               </span>
             </div>
 
-            <div className="h-4 w-px bg-slate-800 hidden sm:block" />
-
-            {/* Role switcher toggle buttons */}
-            <div className="inline-flex bg-slate-900 p-0.5 rounded-xl border border-slate-800 shadow-inner">
-              <button
-                id="role-customer-btn"
-                onClick={() => {
-                  setCurrentRoleView('customer');
-                }}
-                className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  currentRoleView === 'customer'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span>{t.customerPanel}</span>
-                {isCustomerLoggedIn && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
-                )}
-              </button>
-
-              <button
-                id="role-admin-btn"
-                onClick={() => {
-                  setCurrentRoleView('admin');
-                }}
-                className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer relative ${
-                  currentRoleView === 'admin'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
+            {isAdminLoggedIn && currentRoleView === 'admin' && (
+              <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>{t.adminPanel}</span>
-                {isAdminLoggedIn && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-300" />
-                )}
-                {pendingDepositsCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-black text-[10px]">
-                    {pendingDepositsCount}
-                  </span>
-                )}
-              </button>
-            </div>
+                <span>Admin Mode</span>
+              </span>
+            )}
           </div>
 
           {/* Center: Viewport Switcher Controls (Full Web, Tablet, Mobile) */}
@@ -155,7 +110,7 @@ const MainLayout: React.FC = () => {
                   ? 'bg-slate-800 text-white font-bold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
-              title="Fluid Full Width Web View"
+              title="Full Width Web View"
             >
               <Monitor className="w-3.5 h-3.5 text-emerald-400" />
               <span>Full Website</span>
@@ -188,42 +143,42 @@ const MainLayout: React.FC = () => {
             </button>
           </div>
 
-          {/* Right: Quick Account Switcher & Language Switcher */}
+          {/* Right: Auth Status & Language Switcher */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {currentRoleView === 'customer' && isCustomerLoggedIn && (
-              <div className="flex items-center gap-1.5 bg-slate-900 px-2 py-0.5 rounded-xl border border-slate-800">
-                <span className="hidden md:inline text-[11px] text-slate-400 font-medium">
-                  Active:
-                </span>
+            {/* If Customer is Logged In */}
+            {isCustomerLoggedIn && currentRoleView === 'customer' && (
+              <div className="flex items-center gap-2 bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-800">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
                 <span className="text-xs font-bold text-white max-w-[120px] truncate">
                   {currentUser.name}
                 </span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 font-bold border border-emerald-800">
-                  {currentUser.zone || 'Mymensingh'}
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 font-bold border border-emerald-800">
+                  {currentUser.userType || 'General'}
                 </span>
                 <button
                   onClick={logoutCustomer}
                   className="text-rose-400 hover:text-rose-300 p-1 cursor-pointer"
-                  title="Logout Customer"
+                  title="Logout"
                 >
                   <LogOut className="w-3 h-3" />
                 </button>
               </div>
             )}
 
-            {currentRoleView === 'customer' && !isCustomerLoggedIn && (
-              <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-400 font-medium bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-800">
-                <LogIn className="w-3 h-3 text-emerald-400" />
-                <span>Customer Login / Register</span>
-              </div>
-            )}
-
-            {currentRoleView === 'admin' && (
-              <div className="flex items-center gap-1.5 text-[11px] font-medium bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-800">
-                <span className="text-slate-400">Admin:</span>
-                <span className="font-bold text-indigo-300">
-                  {isAdminLoggedIn ? 'Logged In (admin)' : 'user: admin | pass: admin1'}
+            {/* If Admin is Logged In */}
+            {isAdminLoggedIn && currentRoleView === 'admin' && (
+              <div className="flex items-center gap-2 bg-indigo-950/60 px-2.5 py-1 rounded-xl border border-indigo-800/50">
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="text-xs font-bold text-indigo-200">
+                  Admin Active
                 </span>
+                <button
+                  onClick={logoutAdmin}
+                  className="text-rose-400 hover:text-rose-300 p-1 cursor-pointer"
+                  title="Logout Admin"
+                >
+                  <LogOut className="w-3 h-3" />
+                </button>
               </div>
             )}
 
@@ -241,7 +196,7 @@ const MainLayout: React.FC = () => {
         </div>
       </aside>
 
-      {/* 2. Main System Container Frame with Viewport Simulation */}
+      {/* 2. Main Container Frame with Viewport Simulation */}
       <div
         className={`flex-1 flex flex-col transition-all duration-300 w-full ${
           viewportMode === 'responsive'
@@ -256,19 +211,17 @@ const MainLayout: React.FC = () => {
              CUSTOMER WEB SYSTEM PORTAL
              ========================================================================= */
           <div className="flex-1 flex flex-col bg-slate-50 min-h-screen">
-            {/* If Customer is NOT logged in, show the Registration / Login Component */}
             {!isCustomerLoggedIn ? (
               <div className="flex-1 flex flex-col">
                 <CustomerAuth onAuthSuccess={() => setCustomerActiveTab('dashboard')} />
                 <CustomerFooter setActiveTab={setCustomerActiveTab} />
               </div>
             ) : (
-              /* If Customer is logged in, show the full Dashboard & Features */
               <div className="flex-1 flex flex-col">
                 {/* Customer Top Navigation */}
                 <CustomerNavbar activeTab={customerActiveTab} setActiveTab={setCustomerActiveTab} />
 
-                {/* Customer Screen Body */}
+                {/* Customer Main Screen Body */}
                 <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-24 md:pb-12">
                   {customerActiveTab === 'dashboard' && (
                     <CustomerDashboard
@@ -292,73 +245,66 @@ const MainLayout: React.FC = () => {
                     <CustomerHistory />
                   )}
                   {customerActiveTab === 'profile' && (
-                    <CustomerProfile />
+                    <CustomerProfile setActiveTab={setCustomerActiveTab} />
                   )}
                 </main>
 
-                {/* Customer Website Comprehensive Footer */}
+                {/* Customer Footer */}
                 <CustomerFooter setActiveTab={setCustomerActiveTab} />
 
-                {/* Mobile Bottom Navigation Bar (Responsive for smaller widths) */}
+                {/* Mobile Bottom Nav */}
                 <CustomerBottomNav activeTab={customerActiveTab} setActiveTab={setCustomerActiveTab} />
               </div>
             )}
           </div>
         ) : (
           /* =========================================================================
-             ADMIN OPERATIONS CONTROL SYSTEM
+             ADMIN OPERATIONS CONTROL SYSTEM (WITH TOP MENU BAR)
              ========================================================================= */
           <div className="flex-1 flex flex-col bg-slate-100 min-h-screen">
             {!isAdminLoggedIn ? (
               <AdminAuth onAuthSuccess={() => setAdminActiveTab('admin_dashboard')} />
             ) : (
               <div className="flex-1 flex flex-col">
+                {/* Redesigned Admin Header with Top Horizontal Menu Bar */}
                 <AdminHeader
-                  sidebarOpen={adminSidebarOpen}
-                  setSidebarOpen={setAdminSidebarOpen}
+                  activeTab={adminActiveTab}
                   setActiveTab={setAdminActiveTab}
                 />
 
-                <div className="flex-1 flex">
-                  {/* Admin Navigation Sidebar Drawer */}
-                  <AdminSidebar
-                    activeTab={adminActiveTab}
-                    setActiveTab={setAdminActiveTab}
-                    isOpen={adminSidebarOpen}
-                    setIsOpen={setAdminSidebarOpen}
-                  />
-
-                  {/* Admin Main Body */}
-                  <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
-                    {adminActiveTab === 'admin_dashboard' && (
-                      <AdminDashboard setActiveTab={setAdminActiveTab} />
-                    )}
-                    {adminActiveTab === 'admin_users' && (
-                      <AdminUsers />
-                    )}
-                    {adminActiveTab === 'admin_tasks' && (
-                      <AdminTasks />
-                    )}
-                    {adminActiveTab === 'admin_submissions' && (
-                      <AdminSubmissions />
-                    )}
-                    {adminActiveTab === 'admin_deposits' && (
-                      <AdminDeposits />
-                    )}
-                    {adminActiveTab === 'admin_withdrawals' && (
-                      <AdminWithdrawals />
-                    )}
-                    {adminActiveTab === 'admin_payments' && (
-                      <AdminPayments />
-                    )}
-                    {adminActiveTab === 'admin_settings' && (
-                      <AdminSettings />
-                    )}
-                    {adminActiveTab === 'admin_reports' && (
-                      <AdminReports />
-                    )}
-                  </main>
-                </div>
+                {/* Admin Main Body */}
+                <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
+                  {adminActiveTab === 'admin_dashboard' && (
+                    <AdminDashboard setActiveTab={setAdminActiveTab} />
+                  )}
+                  {adminActiveTab === 'admin_tasks' && (
+                    <AdminTasks />
+                  )}
+                  {adminActiveTab === 'admin_submissions' && (
+                    <AdminSubmissions />
+                  )}
+                  {adminActiveTab === 'admin_users' && (
+                    <AdminUsers />
+                  )}
+                  {adminActiveTab === 'admin_deposits' && (
+                    <AdminDeposits />
+                  )}
+                  {adminActiveTab === 'admin_withdrawals' && (
+                    <AdminWithdrawals />
+                  )}
+                  {adminActiveTab === 'admin_announcements' && (
+                    <AdminAnnouncements />
+                  )}
+                  {adminActiveTab === 'admin_payments' && (
+                    <AdminPayments />
+                  )}
+                  {adminActiveTab === 'admin_settings' && (
+                    <AdminSettings />
+                  )}
+                  {adminActiveTab === 'admin_reports' && (
+                    <AdminReports />
+                  )}
+                </main>
               </div>
             )}
           </div>
@@ -371,12 +317,12 @@ const MainLayout: React.FC = () => {
           task={activeTaskModal}
           onClose={() => setActiveTaskModal(null)}
           onTaskCompleted={() => {
-            // Handled in Context
+            // Context handles balances & tier rewards
           }}
         />
       )}
 
-      {/* 4. Global Floating Toast Notifications Container */}
+      {/* 4. Global Floating Toast Notifications */}
       <div className="fixed bottom-16 md:bottom-6 right-4 sm:right-6 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full">
         {toasts.map((toast) => (
           <div

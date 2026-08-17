@@ -4,13 +4,10 @@ import {
   ShieldCheck,
   Lock,
   User as UserIcon,
-  Sparkles,
   AlertCircle,
   ArrowRight,
-  KeyRound,
   Eye,
-  EyeOff,
-  Check
+  EyeOff
 } from 'lucide-react';
 
 interface Props {
@@ -20,8 +17,8 @@ interface Props {
 export const AdminAuth: React.FC<Props> = ({ onSuccess }) => {
   const { loginAdmin, lang, t } = useApp();
 
-  const [username, setUsername] = useState<string>('admin');
-  const [password, setPassword] = useState<string>('admin1');
+  const [username, setUsername] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -46,13 +43,8 @@ export const AdminAuth: React.FC<Props> = ({ onSuccess }) => {
     if (success) {
       if (onSuccess) onSuccess();
     } else {
-      setErrorMessage(lang === 'bn' ? 'ইউজারনেম বা পাসওয়ার্ড সঠিক নয় (User: admin, Pass: admin1)' : 'Invalid credentials. Use user: admin | pass: admin1');
+      setErrorMessage(lang === 'bn' ? 'ইউজারনেম বা পাসওয়ার্ড সঠিক নয়' : 'Invalid admin credentials');
     }
-  };
-
-  const handleQuickFill = () => {
-    setUsername('admin');
-    setPassword('admin1');
   };
 
   return (
@@ -72,21 +64,6 @@ export const AdminAuth: React.FC<Props> = ({ onSuccess }) => {
           <p className="text-xs text-slate-300 mt-1 max-w-xs mx-auto">
             {t.adminLoginSubtitle}
           </p>
-
-          {/* Admin Credentials Helper Badge */}
-          <div className="mt-4 p-2.5 rounded-xl bg-indigo-900/50 border border-indigo-700/50 text-[11px] text-indigo-200 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 font-mono">
-              <KeyRound className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-              <span>User: <strong className="text-white">admin</strong> | Pass: <strong className="text-white">admin1</strong></span>
-            </div>
-            <button
-              type="button"
-              onClick={handleQuickFill}
-              className="px-2 py-0.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] cursor-pointer transition-colors"
-            >
-              Fill
-            </button>
-          </div>
         </div>
 
         {/* Form Body */}
@@ -113,6 +90,10 @@ export const AdminAuth: React.FC<Props> = ({ onSuccess }) => {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  onPaste={(e) => {
+                    const text = e.clipboardData.getData('text');
+                    if (text) setUsername(text.trim());
+                  }}
                   placeholder={t.adminUsernamePlaceholder}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
                 />
@@ -133,7 +114,11 @@ export const AdminAuth: React.FC<Props> = ({ onSuccess }) => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="admin1"
+                  onPaste={(e) => {
+                    const text = e.clipboardData.getData('text');
+                    if (text) setPassword(text.trim());
+                  }}
+                  placeholder={lang === 'bn' ? 'অ্যাডমিন পাসওয়ার্ড লিখুন' : 'Enter admin password'}
                   className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
                 />
                 <button

@@ -24,11 +24,29 @@ import {
   Crown,
   Sparkles,
   ArrowRight,
-  TrendingUp
+  TrendingUp,
+  Bell,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 
-export const CustomerProfile: React.FC = () => {
-  const { currentUser, t, lang, setLanguage, settings, changeUserPassword, showToast, logoutCustomer, setActiveTab } = useApp();
+interface Props {
+  setActiveTab?: (tab: string) => void;
+}
+
+export const CustomerProfile: React.FC<Props> = ({ setActiveTab }) => {
+  const {
+    currentUser,
+    t,
+    lang,
+    setLanguage,
+    settings,
+    changeUserPassword,
+    showToast,
+    logoutCustomer,
+    notificationPreferences,
+    updateNotificationPreferences
+  } = useApp();
 
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
@@ -362,6 +380,59 @@ export const CustomerProfile: React.FC = () => {
                 <span className="text-slate-600 font-medium">Email:</span>
                 <span className="font-bold text-slate-800">{settings.customerSupportEmail}</span>
               </div>
+            </div>
+          </div>
+
+          {/* Notification Preferences Card */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Bell className="w-4 h-4 text-emerald-600" />
+                <span>{lang === 'bn' ? 'নোটিফিকেশন ও অ্যালার্ট সেটিংস' : 'Notification Preferences'}</span>
+              </h3>
+              <button
+                onClick={() => updateNotificationPreferences({ soundEnabled: !notificationPreferences.soundEnabled })}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                  notificationPreferences.soundEnabled
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                {notificationPreferences.soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                <span>{notificationPreferences.soundEnabled ? (lang === 'bn' ? 'শব্দ চালু' : 'Sound ON') : (lang === 'bn' ? 'শব্দ বন্ধ' : 'Sound OFF')}</span>
+              </button>
+            </div>
+
+            <div className="space-y-2 pt-1 text-xs">
+              <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer">
+                <span className="font-medium text-slate-700">{lang === 'bn' ? 'ডিপোজিট সফল / বাতিল নোটিফিকেশন' : 'Deposit Status Alerts'}</span>
+                <input
+                  type="checkbox"
+                  checked={notificationPreferences.depositAlerts}
+                  onChange={e => updateNotificationPreferences({ depositAlerts: e.target.checked })}
+                  className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer">
+                <span className="font-medium text-slate-700">{lang === 'bn' ? 'উইথড্রল অনুমোদন / বাতিল নোটিফিকেশন' : 'Withdrawal Status Alerts'}</span>
+                <input
+                  type="checkbox"
+                  checked={notificationPreferences.withdrawalAlerts}
+                  onChange={e => updateNotificationPreferences({ withdrawalAlerts: e.target.checked })}
+                  className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer">
+                <span className="font-medium text-slate-700">{lang === 'bn' ? 'দৈনিক টাস্ক বোনাস ও রিওয়ার্ড সতর্কতা' : 'Task Rewards & Tier Perk Alerts'}</span>
+                <input
+                  type="checkbox"
+                  checked={notificationPreferences.taskRewardAlerts}
+                  onChange={e => updateNotificationPreferences({ taskRewardAlerts: e.target.checked })}
+                  className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                />
+              </label>
             </div>
           </div>
 

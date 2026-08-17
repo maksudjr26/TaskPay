@@ -17,6 +17,7 @@ export const TIER_CONFIG: Record<UserTier, {
   shortDescEn: string;
   amount: number;
   multiplier: string;
+  multiplierNum: number;
   bgGradient: string;
   textColor: string;
   borderColor: string;
@@ -26,10 +27,11 @@ export const TIER_CONFIG: Record<UserTier, {
   General: {
     nameBn: 'জেনারেল মেম্বার',
     nameEn: 'General Member',
-    shortDescBn: '১.০x স্ট্যান্ডার্ড রেট',
+    shortDescBn: '১.০x সাধারণ রিওয়ার্ড',
     shortDescEn: '1.0x Standard Rate',
     amount: 500,
     multiplier: '1.0x',
+    multiplierNum: 1.0,
     bgGradient: 'from-emerald-500/15 via-teal-500/10 to-slate-200/40',
     textColor: 'text-emerald-900',
     borderColor: 'border-emerald-300',
@@ -39,10 +41,11 @@ export const TIER_CONFIG: Record<UserTier, {
   Silver: {
     nameBn: 'সিলভার বুস্টার',
     nameEn: 'Silver Booster',
-    shortDescBn: '+১৫% রিওয়ার্ড বুস্ট',
-    shortDescEn: '+15% Reward Boost',
+    shortDescBn: '+২৫% রিওয়ার্ড বুস্ট (১.২৫x)',
+    shortDescEn: '+25% Boost (1.25x)',
     amount: 1000,
-    multiplier: '1.15x',
+    multiplier: '1.25x',
+    multiplierNum: 1.25,
     bgGradient: 'from-slate-200 via-zinc-100 to-slate-300',
     textColor: 'text-slate-900',
     borderColor: 'border-slate-400',
@@ -52,10 +55,11 @@ export const TIER_CONFIG: Record<UserTier, {
   Gold: {
     nameBn: 'গোল্ড প্রো এলিট',
     nameEn: 'Gold Pro Elite',
-    shortDescBn: '+৩৫% রিওয়ার্ড বুস্ট',
-    shortDescEn: '+35% Reward Boost',
+    shortDescBn: '+৭৫% রিওয়ার্ড বুস্ট (১.৭৫x)',
+    shortDescEn: '+75% Boost (1.75x)',
     amount: 3000,
-    multiplier: '1.35x',
+    multiplier: '1.75x',
+    multiplierNum: 1.75,
     bgGradient: 'from-amber-400 via-yellow-200 to-amber-500',
     textColor: 'text-amber-950',
     borderColor: 'border-amber-400',
@@ -65,10 +69,11 @@ export const TIER_CONFIG: Record<UserTier, {
   Platinum: {
     nameBn: 'প্লাটিনাম মাস্টার',
     nameEn: 'Platinum Master',
-    shortDescBn: '+৬০% সুপার রিওয়ার্ড',
-    shortDescEn: '+60% Super Boost',
+    shortDescBn: '+১২৫% সুপার বুস্ট (২.২৫x)',
+    shortDescEn: '+125% Super Boost (2.25x)',
     amount: 5000,
-    multiplier: '1.60x',
+    multiplier: '2.25x',
+    multiplierNum: 2.25,
     bgGradient: 'from-cyan-400 via-sky-200 to-teal-300',
     textColor: 'text-cyan-950',
     borderColor: 'border-cyan-300',
@@ -78,10 +83,11 @@ export const TIER_CONFIG: Record<UserTier, {
   VIP: {
     nameBn: 'রয়্যাল ভিআইপি সুপ্রিম',
     nameEn: 'Royal VIP Supreme',
-    shortDescBn: '২.০x ডাবল রিওয়ার্ড',
-    shortDescEn: '2.0x DOUBLE Reward',
+    shortDescBn: '৩.০x ট্রিপল রিওয়ার্ড (৩০০%)',
+    shortDescEn: '3.0x TRIPLE Reward',
     amount: 10000,
-    multiplier: '2.0x',
+    multiplier: '3.0x',
+    multiplierNum: 3.0,
     bgGradient: 'from-purple-600 via-pink-600 to-amber-400 text-white',
     textColor: 'text-white',
     borderColor: 'border-purple-300/80',

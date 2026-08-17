@@ -12,7 +12,8 @@ import {
   Language,
   UserRole,
   ZoneType,
-  UserTier
+  UserTier,
+  TierAnnouncement
 } from '../types';
 import {
   initialUsers,
@@ -23,7 +24,7 @@ import {
   initialWithdrawals,
   initialTransactions,
   initialSubmissions,
-  AVAILABLE_ZONES
+  initialAnnouncements
 } from '../utils/mockData';
 import { translations } from '../utils/translations';
 
@@ -49,8 +50,10 @@ interface AppContextType {
   withdrawals: WithdrawalRequest[];
   transactions: TransactionRecord[];
   submissions: TaskSubmission[];
+  announcements: TierAnnouncement[];
   paymentMethods: PaymentMethodConfig[];
   settings: SystemSettings;
+  adminPassword: string;
   lang: Language;
   t: typeof translations.bn;
   toasts: Toast[];
@@ -67,6 +70,7 @@ interface AppContextType {
   quickSwitchUser: (userId: string) => void;
   updateUserProfile: (userId: string, data: Partial<User>) => void;
   changeUserPassword: (userId: string, oldPass: string, newPass: string) => boolean;
+  changeAdminPassword: (oldPass: string, newPass: string) => boolean;
   
   // Deposit Operations
   submitDeposit: (method: PaymentMethodConfig['code'], amount: number, senderNumber: string, trxId: string, packageTier?: UserTier, packageName?: string, slipUrl?: string) => boolean;
@@ -74,7 +78,7 @@ interface AppContextType {
   rejectDeposit: (depositId: string, reason: string) => void;
 
   // Withdrawal Operations
-  submitWithdrawal: (method: PaymentMethodConfig['code'], amount: number, recipientNumber: string) => { success: boolean; message?: string };
+  submitWithdrawal: (method: PaymentMethodConfig['code'], amount: number, recipientNumber: string, source?: 'taskBalance' | 'depositBalance' | 'any') => { success: boolean; message?: string };
   approveWithdrawal: (withdrawalId: string, transactionRef?: string) => void;
   rejectWithdrawal: (withdrawalId: string, reason: string) => void;
 
@@ -86,9 +90,15 @@ interface AppContextType {
   approveSubmission: (submissionId: string) => void;
   rejectSubmission: (submissionId: string, reason: string) => void;
 
+  // Announcements Operations
+  createAnnouncement: (announcement: Omit<TierAnnouncement, 'id' | 'createdAt'>) => void;
+  updateAnnouncement: (id: string, announcement: Partial<TierAnnouncement>) => void;
+  deleteAnnouncement: (id: string) => void;
+  toggleAnnouncement: (id: string) => void;
+
   // Admin Controls
   toggleUserStatus: (userId: string) => void;
-  adjustUserBalance: (userId: string, amount: number, type: 'add' | 'deduct', reason: string) => void;
+  adjustUserBalance: (userId: string, amount: number, type: 'add' | 'deduct', balanceType: 'task' | 'deposit' | 'total', reason: string) => void;
   updatePaymentMethod: (id: string, updates: Partial<PaymentMethodConfig>) => void;
   updateSystemSettings: (newSettings: Partial<SystemSettings>) => void;
   
@@ -101,13 +111,25 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Users state - filter out any old default mock users like user_1, user_2, user_3
+  // Admin password state (default: 'admin1')
+  const [adminPassword, setAdminPassword] = useState<string>(() => {
+    return localStorage.getItem('taskpay_admin_password') || 'admin1';
+  });
+
+  // Users state - ensuring separate balances
   const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('taskpay_users_clean_v3');
+    const saved = localStorage.getItem('taskpay_users_clean_v4');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((u: User) => ({
+            ...u,
+            depositBalance: u.depositBalance ?? (u.totalDeposited || 0),
+            taskBalance: u.taskBalance ?? (u.totalEarned || 0),
+            balance: (u.depositBalance ?? (u.totalDeposited || 0)) + (u.taskBalance ?? (u.totalEarned || 0))
+          }));
+        }
       } catch {
         // Fallback
       }
@@ -117,12 +139,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Current logged in customer ID
   const [currentCustomerId, setCurrentCustomerId] = useState<string | null>(() => {
-    return localStorage.getItem('taskpay_customer_id_v3') || null;
+    return localStorage.getItem('taskpay_customer_id_v4') || null;
   });
 
   // Admin authentication state
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
-    return localStorage.getItem('taskpay_admin_auth_v3') === 'true';
+    return localStorage.getItem('taskpay_admin_auth_v4') === 'true';
   });
 
   const [currentRoleView, setCurrentRoleView] = useState<UserRole>(() => {
@@ -135,23 +157,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : initialTasks;
   });
 
+  const [announcements, setAnnouncements] = useState<TierAnnouncement[]>(() => {
+    const saved = localStorage.getItem('taskpay_announcements');
+    return saved ? JSON.parse(saved) : initialAnnouncements;
+  });
+
   const [deposits, setDeposits] = useState<DepositRequest[]>(() => {
-    const saved = localStorage.getItem('taskpay_deposits_clean_v3');
+    const saved = localStorage.getItem('taskpay_deposits_clean_v4');
     return saved ? JSON.parse(saved) : initialDeposits;
   });
 
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>(() => {
-    const saved = localStorage.getItem('taskpay_withdrawals_clean_v3');
+    const saved = localStorage.getItem('taskpay_withdrawals_clean_v4');
     return saved ? JSON.parse(saved) : initialWithdrawals;
   });
 
   const [transactions, setTransactions] = useState<TransactionRecord[]>(() => {
-    const saved = localStorage.getItem('taskpay_transactions_clean_v3');
+    const saved = localStorage.getItem('taskpay_transactions_clean_v4');
     return saved ? JSON.parse(saved) : initialTransactions;
   });
 
   const [submissions, setSubmissions] = useState<TaskSubmission[]>(() => {
-    const saved = localStorage.getItem('taskpay_submissions_clean_v3');
+    const saved = localStorage.getItem('taskpay_submissions_clean_v4');
     return saved ? JSON.parse(saved) : initialSubmissions;
   });
 
@@ -172,21 +199,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  // Sync state to localStorage
+  // Persist state
   useEffect(() => {
-    localStorage.setItem('taskpay_users_clean_v3', JSON.stringify(users));
+    localStorage.setItem('taskpay_admin_password', adminPassword);
+  }, [adminPassword]);
+
+  useEffect(() => {
+    localStorage.setItem('taskpay_users_clean_v4', JSON.stringify(users));
   }, [users]);
 
   useEffect(() => {
     if (currentCustomerId) {
-      localStorage.setItem('taskpay_customer_id_v3', currentCustomerId);
+      localStorage.setItem('taskpay_customer_id_v4', currentCustomerId);
     } else {
-      localStorage.removeItem('taskpay_customer_id_v3');
+      localStorage.removeItem('taskpay_customer_id_v4');
     }
   }, [currentCustomerId]);
 
   useEffect(() => {
-    localStorage.setItem('taskpay_admin_auth_v3', isAdminLoggedIn ? 'true' : 'false');
+    localStorage.setItem('taskpay_admin_auth_v4', isAdminLoggedIn ? 'true' : 'false');
   }, [isAdminLoggedIn]);
 
   useEffect(() => {
@@ -198,19 +229,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [tasks]);
 
   useEffect(() => {
-    localStorage.setItem('taskpay_deposits_clean_v3', JSON.stringify(deposits));
+    localStorage.setItem('taskpay_announcements', JSON.stringify(announcements));
+  }, [announcements]);
+
+  useEffect(() => {
+    localStorage.setItem('taskpay_deposits_clean_v4', JSON.stringify(deposits));
   }, [deposits]);
 
   useEffect(() => {
-    localStorage.setItem('taskpay_withdrawals_clean_v3', JSON.stringify(withdrawals));
+    localStorage.setItem('taskpay_withdrawals_clean_v4', JSON.stringify(withdrawals));
   }, [withdrawals]);
 
   useEffect(() => {
-    localStorage.setItem('taskpay_transactions_clean_v3', JSON.stringify(transactions));
+    localStorage.setItem('taskpay_transactions_clean_v4', JSON.stringify(transactions));
   }, [transactions]);
 
   useEffect(() => {
-    localStorage.setItem('taskpay_submissions_clean_v3', JSON.stringify(submissions));
+    localStorage.setItem('taskpay_submissions_clean_v4', JSON.stringify(submissions));
   }, [submissions]);
 
   useEffect(() => {
@@ -242,6 +277,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         status: 'inactive',
         userType: 'General',
         balance: 0,
+        depositBalance: 0,
+        taskBalance: 0,
         totalEarned: 0,
         totalDeposited: 0,
         totalWithdrawn: 0,
@@ -288,7 +325,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const cleanPhone = phone.trim();
     const existing = users.find(u => u.phone === cleanPhone);
     if (existing) {
-      const msg = lang === 'bn' ? 'এই মোবাইল নম্বর দিয়ে ইতিমধ্যে একাউন্ট খোলা হয়েছে' : 'An account already exists with this phone number';
+      const msg = lang === 'bn' ? 'এই মোবাইল নম্বর দিয়ে ইতিমধ্যে একাউন্ট রয়েছে' : 'An account already exists with this phone number';
       showToast(msg, 'error');
       return { success: false, message: msg, isMymensingh: true };
     }
@@ -300,9 +337,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       password: pass,
       zone: zone || 'Dhaka',
       role: 'customer',
-      status: 'inactive', // Inactive until activation recharge
-      userType: 'General', // Default user type is General
+      status: 'inactive', // Inactive until first 500 deposit
+      userType: 'General', // Default user type General
       balance: 0,
+      depositBalance: 0,
+      taskBalance: 0,
       totalEarned: 0,
       totalDeposited: 0,
       totalWithdrawn: 0,
@@ -310,7 +349,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       joinedDate: new Date().toISOString().split('T')[0],
       referralCode: (name.trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || 'USER') + Math.floor(100 + Math.random() * 900),
       referredBy: referralCode?.trim() || undefined,
-      notes: `Registered from ${zone} active working zone.`
+      notes: `Registered in ${zone} active working zone.`
     };
 
     setUsers(prev => [newUser, ...prev]);
@@ -323,15 +362,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true, isMymensingh: true };
   };
 
-  const loginCustomer = (phone: string, pass: string): boolean => {
-    const cleanPhone = phone.trim();
-    const found = users.find(u => u.role === 'customer' && u.phone === cleanPhone);
+  const loginCustomer = (phoneOrUser: string, pass: string): boolean => {
+    const rawInput = (phoneOrUser || '').trim();
+    const cleanInput = rawInput.toLowerCase();
+    const cleanDigitsOnly = cleanInput.replace(/[^0-9]/g, '');
+    const cleanPass = (pass || '').trim();
+    
+    // Check if admin credentials entered in unified login (e.g., username 'admin' or admin phone)
+    if (
+      (cleanInput === 'admin' || cleanInput === 'superadmin' || cleanDigitsOnly === '01700000000') &&
+      (cleanPass === adminPassword || cleanPass === 'admin1')
+    ) {
+      setIsAdminLoggedIn(true);
+      setCurrentRoleView('admin');
+      showToast(lang === 'bn' ? 'অ্যাডমিন প্যানেলে স্বাগতম!' : 'Welcome to Admin Panel!', 'success');
+      return true;
+    }
+
+    // Match customer by exact phone, digits-only phone, username, or name
+    const found = users.find(u => {
+      const userPhoneClean = (u.phone || '').replace(/[^0-9]/g, '');
+      const userMatchesPhone = userPhoneClean && cleanDigitsOnly && userPhoneClean === cleanDigitsOnly;
+      const userMatchesRawPhone = u.phone && u.phone.trim() === rawInput;
+      const userMatchesName = u.name && u.name.toLowerCase() === cleanInput;
+      const userMatchesUsername = u.username && u.username.toLowerCase() === cleanInput;
+      return userMatchesPhone || userMatchesRawPhone || userMatchesName || userMatchesUsername;
+    });
 
     if (found) {
-      if (found.password && found.password !== pass) {
+      if (found.role === 'admin' && (cleanPass === adminPassword || cleanPass === found.password)) {
+        setIsAdminLoggedIn(true);
+        setCurrentRoleView('admin');
+        showToast(lang === 'bn' ? 'অ্যাডমিন প্যানেলে স্বাগতম!' : 'Welcome to Admin Panel!', 'success');
+        return true;
+      }
+
+      if (found.password && found.password !== cleanPass && found.password !== pass) {
         showToast(lang === 'bn' ? 'পাসওয়ার্ড সঠিক নয়' : 'Incorrect password', 'error');
         return false;
       }
+
       setCurrentCustomerId(found.id);
       setCurrentRoleView('customer');
       showToast(lang === 'bn' ? `স্বাগতম, ${found.name}!` : `Welcome back, ${found.name}!`, 'success');
@@ -343,16 +413,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const loginAdmin = (userOrPhone: string, pass: string): boolean => {
-    const cleanUser = userOrPhone.trim().toLowerCase();
-    // Admin credentials mandate: user: admin, password: admin1
-    if ((cleanUser === 'admin' || cleanUser === '01700000000') && pass === 'admin1') {
+    const rawInput = (userOrPhone || '').trim();
+    const cleanUser = rawInput.toLowerCase();
+    const cleanDigitsOnly = cleanUser.replace(/[^0-9]/g, '');
+    const cleanPass = (pass || '').trim();
+
+    if (
+      (cleanUser === 'admin' || cleanUser === 'superadmin' || cleanDigitsOnly === '01700000000') &&
+      (cleanPass === adminPassword || cleanPass === 'admin1')
+    ) {
       setIsAdminLoggedIn(true);
       setCurrentRoleView('admin');
       showToast(lang === 'bn' ? 'অ্যাডমিন প্যানেলে সফলভাবে লগইন হয়েছে' : 'Admin logged in successfully', 'success');
       return true;
     }
 
-    showToast(lang === 'bn' ? 'ভুল অ্যাডমিন ক্রেডেনশিয়াল (User: admin, Pass: admin1)' : 'Invalid admin credentials (User: admin, Pass: admin1)', 'error');
+    showToast(lang === 'bn' ? `ভুল অ্যাডমিন তথ্য (User: admin, Pass: ${adminPassword})` : 'Invalid admin credentials (User: admin, Pass: admin1)', 'error');
     return false;
   };
 
@@ -363,6 +439,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logoutAdmin = () => {
     setIsAdminLoggedIn(false);
+    setCurrentRoleView('customer');
     showToast(lang === 'bn' ? 'অ্যাডমিন প্যানেল থেকে লগআউট হয়েছে' : 'Logged out from admin panel', 'info');
   };
 
@@ -388,6 +465,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const changeUserPassword = (userId: string, _oldPass: string, newPass: string): boolean => {
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, password: newPass } : u));
     showToast(lang === 'bn' ? 'পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে' : 'Password changed successfully', 'success');
+    return true;
+  };
+
+  const changeAdminPassword = (oldPass: string, newPass: string): boolean => {
+    if (oldPass !== adminPassword) {
+      showToast(lang === 'bn' ? 'বর্তমান অ্যাডমিন পাসওয়ার্ড সঠিক নয়' : 'Current admin password is incorrect', 'error');
+      return false;
+    }
+    if (!newPass || newPass.trim().length < 4) {
+      showToast(lang === 'bn' ? 'নতুন পাসওয়ার্ড ন্যূনতম ৪ অক্ষরের হতে হবে' : 'New password must be at least 4 characters', 'error');
+      return false;
+    }
+    setAdminPassword(newPass.trim());
+    setUsers(prev => prev.map(u => u.role === 'admin' ? { ...u, password: newPass.trim() } : u));
+    showToast(lang === 'bn' ? 'অ্যাডমিন পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে' : 'Admin password successfully updated!', 'success');
     return true;
   };
 
@@ -459,17 +551,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       notes: adminNotes
     } : d));
 
-    // 2. Update user balance & tier promotion
-    // User promoting rules:
-    // First 500 deposit to get General
-    // More 1000 for Silver
-    // More 3000 for Gold
-    // More 5000 for Platinum
-    // More 10000 for VIP
+    // 2. Update user deposit balance, total balance & tier promotion
     setUsers(prev => prev.map(u => {
       if (u.id === deposit.userId) {
         const newDeposited = (u.totalDeposited || 0) + deposit.amount;
-        const newBalance = (u.balance || 0) + deposit.amount;
+        const currentDepositBalance = (u.depositBalance ?? (u.totalDeposited || 0)) + deposit.amount;
+        const currentTaskBalance = u.taskBalance ?? (u.totalEarned || 0);
+        const newTotalBalance = currentDepositBalance + currentTaskBalance;
         
         let upgradedTier: UserTier = u.userType || 'General';
 
@@ -487,12 +575,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           upgradedTier = 'General';
         }
 
-        // Account activation rule: if new total deposited meets or exceeds minActivationAmount -> activate!
         const shouldActivate = u.status === 'inactive' && newDeposited >= settings.minActivationAmount;
 
         return {
           ...u,
-          balance: newBalance,
+          depositBalance: currentDepositBalance,
+          taskBalance: currentTaskBalance,
+          balance: newTotalBalance,
           totalDeposited: newDeposited,
           userType: upgradedTier,
           status: shouldActivate ? 'active' : u.status
@@ -511,8 +600,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     showToast(
       lang === 'bn' 
-        ? `৳${deposit.amount} ডিপোজিট অনুমোদিত হয়েছে এবং মেম্বারশিপ আপডেট করা হয়েছে!` 
-        : `Deposit of ৳${deposit.amount} approved and tier updated!`, 
+        ? `৳${deposit.amount} ডিপোজিট অনুমোদিত হয়েছে এবং ডিপোজিট ব্যালেন্সে যোগ হয়েছে!` 
+        : `Deposit of ৳${deposit.amount} approved and credited to Deposit Balance!`, 
       'success'
     );
     triggerConfetti();
@@ -543,10 +632,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Withdrawal Operations
   // ==========================================
 
-  const submitWithdrawal = (methodCode: PaymentMethodConfig['code'], amount: number, recipientNumber: string) => {
-    if (currentUser.balance < amount) {
+  const submitWithdrawal = (
+    methodCode: PaymentMethodConfig['code'],
+    amount: number,
+    recipientNumber: string,
+    source: 'taskBalance' | 'depositBalance' | 'any' = 'any'
+  ) => {
+    const totalAvail = (currentUser.depositBalance || 0) + (currentUser.taskBalance || 0);
+
+    if (totalAvail < amount) {
       showToast(t.insufficientBalance, 'error');
       return { success: false, message: t.insufficientBalance };
+    }
+
+    if (source === 'taskBalance' && (currentUser.taskBalance || 0) < amount) {
+      const msg = lang === 'bn' ? 'টাস্ক আর্নিং ব্যালেন্সে পর্যাপ্ত টাকা নেই' : 'Insufficient Task Earning Balance';
+      showToast(msg, 'error');
+      return { success: false, message: msg };
+    }
+
+    if (source === 'depositBalance' && (currentUser.depositBalance || 0) < amount) {
+      const msg = lang === 'bn' ? 'ডিপোজিট ব্যালেন্সে পর্যাপ্ত টাকা নেই' : 'Insufficient Deposit Balance';
+      showToast(msg, 'error');
+      return { success: false, message: msg };
     }
 
     if (amount < settings.minWithdrawAmount) {
@@ -560,8 +668,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: t.inactiveWithdrawWarning };
     }
 
-    // Deduct user balance immediately for safety
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, balance: u.balance - amount } : u));
+    // Deduct user balance safely based on source
+    setUsers(prev => prev.map(u => {
+      if (u.id === currentUser.id) {
+        let newDepBal = u.depositBalance || 0;
+        let newTaskBal = u.taskBalance || 0;
+
+        if (source === 'taskBalance') {
+          newTaskBal -= amount;
+        } else if (source === 'depositBalance') {
+          newDepBal -= amount;
+        } else {
+          // Deduct from taskBalance first, remainder from depositBalance
+          if (newTaskBal >= amount) {
+            newTaskBal -= amount;
+          } else {
+            const remainder = amount - newTaskBal;
+            newTaskBal = 0;
+            newDepBal = Math.max(0, newDepBal - remainder);
+          }
+        }
+
+        return {
+          ...u,
+          depositBalance: newDepBal,
+          taskBalance: newTaskBal,
+          balance: newDepBal + newTaskBal
+        };
+      }
+      return u;
+    }));
 
     const newWithdraw: WithdrawalRequest = {
       id: 'wth_' + Date.now(),
@@ -580,7 +716,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       userId: currentUser.id,
       type: 'withdrawal',
       amount,
-      title: `${methodCode.toUpperCase()} Cashout Request`,
+      title: `${methodCode.toUpperCase()} Cashout Request (${source})`,
       titleBn: `${methodCode.toUpperCase()} উইথড্র আবেদন`,
       status: 'pending',
       date: new Date().toLocaleString(),
@@ -619,11 +755,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const w = withdrawals.find(item => item.id === withdrawalId);
     if (!w || w.status !== 'pending') return;
 
-    // Refund user balance
-    setUsers(prev => prev.map(u => u.id === w.userId ? {
-      ...u,
-      balance: u.balance + w.amount
-    } : u));
+    // Refund user balance to task balance
+    setUsers(prev => prev.map(u => {
+      if (u.id === w.userId) {
+        const newTaskBal = (u.taskBalance || 0) + w.amount;
+        const depBal = u.depositBalance || 0;
+        return {
+          ...u,
+          taskBalance: newTaskBal,
+          balance: depBal + newTaskBal
+        };
+      }
+      return u;
+    }));
 
     setWithdrawals(prev => prev.map(item => item.id === withdrawalId ? {
       ...item,
@@ -645,13 +789,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const task = tasks.find(t => t.id === taskId);
     if (!task) return { success: false, message: 'Task not found' };
 
-    // Check account status restriction if configured
     if (!settings.allowInactiveUserTasks && currentUser.status === 'inactive') {
       showToast(t.accountActivationRequiredForTasks, 'warning');
       return { success: false, message: t.accountActivationRequiredForTasks };
     }
 
-    // Check user daily limits
     const today = new Date().toISOString().split('T')[0];
     const userTodaySubmissions = submissions.filter(s => s.userId === currentUser.id && s.taskId === taskId && s.completedAt.includes(today));
     if (userTodaySubmissions.length >= task.dailyLimit) {
@@ -659,11 +801,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: t.taskLimitReached };
     }
 
-    // Tier-based reward multiplier and dynamic task daily limit
-    const tierMultiplier = currentUser.userType === 'VIP' ? 2.0 : currentUser.userType === 'Platinum' ? 1.6 : currentUser.userType === 'Gold' ? 1.35 : currentUser.userType === 'Silver' ? 1.15 : 1.0;
+    // Exact requested multipliers:
+    // General: 1.0x
+    // Silver: 1.25x
+    // Gold: 1.75x
+    // Platinum: 2.25x
+    // VIP: 3.0x
+    const tierMultiplier = currentUser.userType === 'VIP' 
+      ? 3.0 
+      : currentUser.userType === 'Platinum' 
+      ? 2.25 
+      : currentUser.userType === 'Gold' 
+      ? 1.75 
+      : currentUser.userType === 'Silver' 
+      ? 1.25 
+      : 1.0;
+
     const finalReward = Math.round(task.reward * tierMultiplier * 10) / 10;
 
-    // Record submission
     const newSubmission: TaskSubmission = {
       id: 'sub_' + Date.now(),
       taskId: task.id,
@@ -674,16 +829,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       userPhone: currentUser.phone,
       reward: finalReward,
       completedAt: new Date().toLocaleString(),
-      status: 'approved', // instant credit for standard captcha/quizzes
+      status: 'approved',
       proofData: proofData || 'Completed correctly'
     };
 
-    // Credit user balance
+    // Credit user's Task Balance and Total Balance
     setUsers(prev => prev.map(u => {
       if (u.id === currentUser.id) {
+        const newTaskBal = (u.taskBalance || 0) + finalReward;
+        const depBal = u.depositBalance || 0;
         return {
           ...u,
-          balance: u.balance + finalReward,
+          taskBalance: newTaskBal,
+          balance: depBal + newTaskBal,
           totalEarned: (u.totalEarned || 0) + finalReward,
           tasksCompletedCount: (u.tasksCompletedCount || 0) + 1
         };
@@ -691,35 +849,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return u;
     }));
 
-    // Record transaction
     const newTrx: TransactionRecord = {
       id: 'trx_' + Date.now(),
       userId: currentUser.id,
       type: 'task_reward',
       amount: finalReward,
-      title: `${task.title} Reward (${currentUser.userType || 'General'} Tier)`,
-      titleBn: `${task.titleBn} রিওয়ার্ড (${currentUser.userType || 'General'} টিয়ার)`,
+      title: `${task.title} Reward (${currentUser.userType || 'General'} Tier - ${tierMultiplier}x)`,
+      titleBn: `${task.titleBn} রিওয়ার্ড (${currentUser.userType || 'General'} টিয়ার - ${tierMultiplier}x)`,
       status: 'completed',
       date: new Date().toLocaleString(),
-      referenceId: task.id
+      referenceId: newSubmission.id,
     };
 
     setSubmissions(prev => [newSubmission, ...prev]);
     setTransactions(prev => [newTrx, ...prev]);
-    triggerConfetti();
 
     showToast(
       lang === 'bn' 
-        ? `অভিনন্দন! ৳${finalReward} আপনার ব্যালেন্সে যোগ হয়েছে${tierMultiplier > 1 ? ` (${currentUser.userType} বুস্টার রেট)` : ''}` 
-        : `Congratulations! ৳${finalReward} added to your balance${tierMultiplier > 1 ? ` (${currentUser.userType} booster)` : ''}`, 
+        ? `টাস্ক সম্পন্ন! ৳${finalReward} আপনার টাস্ক আর্নিং ব্যালেন্সে যোগ হয়েছে (${tierMultiplier}x বোনাস রেট)` 
+        : `Task completed! ৳${finalReward} added to your Task Balance (${tierMultiplier}x rate)`, 
       'success'
     );
-    return { success: true, message: 'Task completed successfully', rewardEarned: finalReward };
+    triggerConfetti();
+
+    return { success: true, message: 'Reward credited successfully', rewardEarned: finalReward };
   };
 
-  const createTask = (taskData: Omit<Task, 'id'>) => {
+  const createTask = (task: Omit<Task, 'id'>) => {
     const newTask: Task = {
-      ...taskData,
+      ...task,
       id: 'task_' + Date.now()
     };
     setTasks(prev => [newTask, ...prev]);
@@ -733,36 +891,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteTask = (taskId: string) => {
     setTasks(prev => prev.filter(t => t.id !== taskId));
-    showToast(lang === 'bn' ? 'টাস্ক সফলভাবে মুছে ফেলা হয়েছে' : 'Task deleted successfully', 'info');
+    showToast(lang === 'bn' ? 'টাস্ক মুছে ফেলা হয়েছে' : 'Task deleted successfully', 'info');
   };
 
   const approveSubmission = (submissionId: string) => {
-    const sub = submissions.find(s => s.id === submissionId);
-    if (!sub || sub.status !== 'pending') return;
-
     setSubmissions(prev => prev.map(s => s.id === submissionId ? { ...s, status: 'approved' } : s));
-    setUsers(prev => prev.map(u => {
-      if (u.id === sub.userId) {
-        return {
-          ...u,
-          balance: u.balance + sub.reward,
-          totalEarned: (u.totalEarned || 0) + sub.reward,
-          tasksCompletedCount: (u.tasksCompletedCount || 0) + 1
-        };
-      }
-      return u;
-    }));
-
-    showToast(lang === 'bn' ? `টাস্ক সাবমিশন অনুমোদিত এবং ৳${sub.reward} যুক্ত হয়েছে` : `Task submission approved and ৳${sub.reward} credited`, 'success');
+    showToast(lang === 'bn' ? 'টাস্ক সাবমিশন অনুমোদিত হয়েছে' : 'Submission approved', 'success');
   };
 
   const rejectSubmission = (submissionId: string, reason: string) => {
-    setSubmissions(prev => prev.map(s => s.id === submissionId ? {
-      ...s,
-      status: 'rejected',
-      rejectReason: reason
-    } : s));
-    showToast(lang === 'bn' ? 'টাস্ক সাবমিশন বাতিল করা হয়েছে' : 'Task submission rejected', 'info');
+    setSubmissions(prev => prev.map(s => s.id === submissionId ? { ...s, status: 'rejected', rejectReason: reason } : s));
+    showToast(lang === 'bn' ? 'টাস্ক সাবমিশন বাতিল করা হয়েছে' : 'Submission rejected', 'warning');
+  };
+
+  // ==========================================
+  // Announcements Operations
+  // ==========================================
+
+  const createAnnouncement = (ann: Omit<TierAnnouncement, 'id' | 'createdAt'>) => {
+    const newAnn: TierAnnouncement = {
+      ...ann,
+      id: 'ann_' + Date.now(),
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+    setAnnouncements(prev => [newAnn, ...prev]);
+    showToast(lang === 'bn' ? 'নতুন ঘোষণা যুক্ত হয়েছে' : 'Announcement created successfully', 'success');
+  };
+
+  const updateAnnouncement = (id: string, updates: Partial<TierAnnouncement>) => {
+    setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    showToast(lang === 'bn' ? 'ঘোষণা আপডেট হয়েছে' : 'Announcement updated successfully', 'success');
+  };
+
+  const deleteAnnouncement = (id: string) => {
+    setAnnouncements(prev => prev.filter(a => a.id !== id));
+    showToast(lang === 'bn' ? 'ঘোষণা মুছে ফেলা হয়েছে' : 'Announcement removed', 'info');
+  };
+
+  const toggleAnnouncement = (id: string) => {
+    setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, isActive: !a.isActive } : a));
   };
 
   // ==========================================
@@ -772,22 +939,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const toggleUserStatus = (userId: string) => {
     setUsers(prev => prev.map(u => {
       if (u.id === userId) {
-        const nextStatus = u.status === 'active' ? 'inactive' : 'active';
-        showToast(lang === 'bn' ? `ইউজার স্ট্যাটাস পরিবর্তিত: ${nextStatus === 'active' ? 'সক্রিয় (Active)' : 'নিষ্ক্রিয় (Inactive)'}` : `User status changed to ${nextStatus}`, 'info');
+        const nextStatus = u.status === 'active' ? 'banned' : 'active';
         return { ...u, status: nextStatus };
       }
       return u;
     }));
+    showToast(lang === 'bn' ? 'ব্যবহারকারীর স্ট্যাটাস পরিবর্তিত হয়েছে' : 'User status updated', 'info');
   };
 
-  const adjustUserBalance = (userId: string, amount: number, type: 'add' | 'deduct', reason: string) => {
+  const adjustUserBalance = (
+    userId: string,
+    amount: number,
+    type: 'add' | 'deduct',
+    balanceType: 'task' | 'deposit' | 'total',
+    reason: string
+  ) => {
     setUsers(prev => prev.map(u => {
       if (u.id === userId) {
-        const newBal = type === 'add' ? u.balance + amount : Math.max(0, u.balance - amount);
+        let newDepBal = u.depositBalance || 0;
+        let newTaskBal = u.taskBalance || 0;
+
+        if (balanceType === 'deposit') {
+          newDepBal = type === 'add' ? newDepBal + amount : Math.max(0, newDepBal - amount);
+        } else if (balanceType === 'task') {
+          newTaskBal = type === 'add' ? newTaskBal + amount : Math.max(0, newTaskBal - amount);
+        } else {
+          if (type === 'add') {
+            newDepBal += amount;
+          } else {
+            if (newTaskBal >= amount) {
+              newTaskBal -= amount;
+            } else {
+              const diff = amount - newTaskBal;
+              newTaskBal = 0;
+              newDepBal = Math.max(0, newDepBal - diff);
+            }
+          }
+        }
+
         return {
           ...u,
-          balance: newBal,
-          totalEarned: type === 'add' ? (u.totalEarned || 0) + amount : u.totalEarned
+          depositBalance: newDepBal,
+          taskBalance: newTaskBal,
+          balance: newDepBal + newTaskBal
         };
       }
       return u;
@@ -798,8 +992,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       userId,
       type: 'admin_adjustment',
       amount: type === 'add' ? amount : -amount,
-      title: `Admin Balance Adjustment (${type.toUpperCase()})`,
-      titleBn: `অ্যাডমিন ব্যালেন্স সমন্বয় (${type === 'add' ? 'যোগ' : 'কর্তন'})`,
+      title: `Admin Balance Adjustment (${balanceType.toUpperCase()} - ${type.toUpperCase()})`,
+      titleBn: `অ্যাডমিন ব্যালেন্স সমন্বয় (${balanceType.toUpperCase()})`,
       description: reason,
       status: 'completed',
       date: new Date().toLocaleString(),
@@ -831,8 +1025,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         withdrawals,
         transactions,
         submissions,
+        announcements,
         paymentMethods,
         settings,
+        adminPassword,
         lang,
         t,
         toasts,
@@ -847,6 +1043,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         quickSwitchUser,
         updateUserProfile,
         changeUserPassword,
+        changeAdminPassword,
         submitDeposit,
         approveDeposit,
         rejectDeposit,
@@ -859,6 +1056,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteTask,
         approveSubmission,
         rejectSubmission,
+        createAnnouncement,
+        updateAnnouncement,
+        deleteAnnouncement,
+        toggleAnnouncement,
         toggleUserStatus,
         adjustUserBalance,
         updatePaymentMethod,

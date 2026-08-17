@@ -35,7 +35,9 @@ export interface User {
   role: UserRole;
   status: AccountStatus;
   userType: UserTier;
-  balance: number;
+  balance: number; // Total balance = depositBalance + taskBalance
+  depositBalance: number; // Separate balance from approved deposits/recharges
+  taskBalance: number; // Separate balance earned from completing tasks
   totalEarned: number;
   totalDeposited: number;
   totalWithdrawn: number;
@@ -45,6 +47,23 @@ export interface User {
   referredBy?: string;
   referralCode?: string;
   notes?: string;
+}
+
+export interface TierAnnouncement {
+  id: string;
+  target: 'all' | 'guest' | 'General' | 'Silver' | 'Gold' | 'Platinum' | 'VIP';
+  title: string;
+  titleBn: string;
+  message: string;
+  messageBn: string;
+  type: 'info' | 'promotion' | 'warning' | 'celebration';
+  badgeText?: string;
+  badgeTextBn?: string;
+  actionText?: string;
+  actionTextBn?: string;
+  actionTab?: string;
+  isActive: boolean;
+  createdAt: string;
 }
 
 export interface Task {
@@ -174,4 +193,32 @@ export interface TransactionRecord {
   date: string;
   referenceId?: string;
   method?: PaymentMethodCode;
+}
+
+export type NotificationTarget = 'all' | 'admin' | 'customer';
+export type NotificationCategory = 'deposit' | 'withdrawal' | 'task' | 'tier' | 'system' | 'account';
+
+export interface AppNotification {
+  id: string;
+  userId?: string; // specific customer ID, or 'admin', or 'all'
+  target: NotificationTarget;
+  title: string;
+  titleBn: string;
+  message: string;
+  messageBn: string;
+  category: NotificationCategory;
+  type: 'success' | 'error' | 'info' | 'warning';
+  read: boolean;
+  createdAt: string;
+  actionTab?: string;
+  referenceId?: string;
+  amount?: number;
+}
+
+export interface NotificationPreferences {
+  soundEnabled: boolean;
+  depositAlerts: boolean;
+  withdrawalAlerts: boolean;
+  taskRewardAlerts: boolean;
+  systemAlerts: boolean;
 }

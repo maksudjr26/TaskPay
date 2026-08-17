@@ -9,13 +9,13 @@ import {
   User as UserIcon,
   MapPin,
   Sparkles,
-  ShieldCheck,
   CheckCircle2,
   AlertCircle,
-  Info,
   ArrowRight,
   Eye,
-  EyeOff
+  EyeOff,
+  ClipboardPaste,
+  ShieldAlert
 } from 'lucide-react';
 
 interface Props {
@@ -37,14 +37,12 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
 
   // Form Fields
   const [name, setName] = useState<string>('');
-  const [phone, setPhone] = useState<string>('');
+  const [phoneOrUser, setPhoneOrUser] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [zone, setZone] = useState<string>('Dhaka');
   const [referralCode, setReferralCode] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
-  const selectedZoneObj = AVAILABLE_ZONES.find(z => z.id === zone) || AVAILABLE_ZONES[0];
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +52,8 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
       setErrorMessage(lang === 'bn' ? 'দয়া করে আপনার নাম লিখুন' : 'Please enter your full name');
       return;
     }
-    if (!phone.trim() || phone.trim().length < 10) {
+    const cleanPhone = phoneOrUser.trim().replace(/[^0-9]/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
       setErrorMessage(lang === 'bn' ? 'সঠিক ১১ ডিজিটের মোবাইল নম্বর দিন (যেমন: 017XXXXXXXX)' : 'Please enter a valid 11-digit mobile number');
       return;
     }
@@ -64,7 +63,7 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
     }
 
     setIsSubmitting(true);
-    const res = registerCustomer(name.trim(), phone.trim(), password, zone, referralCode.trim());
+    const res = registerCustomer(name.trim(), cleanPhone, password, zone, referralCode.trim());
     setIsSubmitting(false);
 
     if (res.success) {
@@ -78,8 +77,9 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
     e.preventDefault();
     setErrorMessage('');
 
-    if (!phone.trim()) {
-      setErrorMessage(lang === 'bn' ? 'দয়া করে মোবাইল নম্বর দিন' : 'Please enter your mobile number');
+    const trimmedInput = phoneOrUser.trim();
+    if (!trimmedInput) {
+      setErrorMessage(lang === 'bn' ? 'মোবাইল নম্বর অথবা ইউজারনেম দিন' : 'Please enter your mobile number or username');
       return;
     }
     if (!password) {
@@ -88,7 +88,7 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
     }
 
     setIsSubmitting(true);
-    const success = loginCustomer(phone.trim(), password);
+    const success = loginCustomer(trimmedInput, password);
     setIsSubmitting(false);
 
     if (success) {
@@ -181,6 +181,10 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData('text');
+                      if (text) setName(text.trim());
+                    }}
                     placeholder={t.namePlaceholder}
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                   />
@@ -197,10 +201,15 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
                     <Phone className="w-4 h-4" />
                   </div>
                   <input
-                    type="tel"
+                    type="text"
+                    inputMode="tel"
                     required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    value={phoneOrUser}
+                    onChange={(e) => setPhoneOrUser(e.target.value)}
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData('text');
+                      if (text) setPhoneOrUser(text.trim());
+                    }}
                     placeholder={t.phonePlaceholder}
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                   />
@@ -221,6 +230,10 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData('text');
+                      if (text) setPassword(text.trim());
+                    }}
                     placeholder={t.passwordPlaceholder}
                     className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                   />
@@ -284,6 +297,10 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
                   type="text"
                   value={referralCode}
                   onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  onPaste={(e) => {
+                    const text = e.clipboardData.getData('text');
+                    if (text) setReferralCode(text.trim().toUpperCase());
+                  }}
                   placeholder="যেমন: TASK2026"
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 uppercase transition-all"
                 />
@@ -301,34 +318,54 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
             </form>
           ) : (
             /* =========================================================================
-               CUSTOMER LOGIN FORM (Phone & Password Only)
+               GENERAL LOGIN FORM (Supports Mobile Phone, Text Username, Admin Login, & Text Pasting)
                ========================================================================= */
             <form onSubmit={handleLogin} className="space-y-4">
-              {/* 1. Mobile Number (Phone) */}
+              {/* 1. Mobile Number or Username (Accepts Text/Phone/Admin & Pasting) */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  {t.phone} <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700">
+                    {t.phoneOrUsername || (lang === 'bn' ? 'মোবাইল নম্বর অথবা ইউজারনেম' : 'Mobile Number or Username')}{' '}
+                    <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                    <ClipboardPaste className="w-3 h-3 text-emerald-600" />
+                    <span>{lang === 'bn' ? 'পেস্ট সমর্থিত' : 'Paste text ok'}</span>
+                  </span>
+                </div>
+
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <Phone className="w-4 h-4" />
+                    <UserIcon className="w-4 h-4" />
                   </div>
                   <input
-                    type="tel"
+                    type="text"
+                    inputMode="text"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder={t.phonePlaceholder}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                    value={phoneOrUser}
+                    onChange={(e) => setPhoneOrUser(e.target.value)}
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData('text');
+                      if (text) {
+                        setPhoneOrUser(text.trim());
+                      }
+                    }}
+                    placeholder={t.phoneOrUsernamePlaceholder || (lang === 'bn' ? '০১৭XXXXXXXX' : '01XXXXXXXXX')}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-mono"
                   />
                 </div>
               </div>
 
               {/* 2. Password */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  {t.password} <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700">
+                    {t.password} <span className="text-rose-500">*</span>
+                  </label>
+                </div>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <Lock className="w-4 h-4" />
@@ -336,8 +373,15 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData('text');
+                      if (text) {
+                        setPassword(text.trim());
+                      }
+                    }}
                     placeholder={t.passwordPlaceholder}
                     className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                   />
@@ -361,6 +405,7 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
                 <ArrowRight className="w-4 h-4" />
               </button>
 
+              {/* Sign up prompt */}
               <div className="pt-2 text-center text-xs text-slate-500">
                 <span>{t.dontHaveAccount} </span>
                 <button

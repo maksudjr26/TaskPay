@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { NotificationBellModal } from '../common/NotificationBellModal';
 import {
   Wallet,
   ShieldCheck,
@@ -136,6 +137,9 @@ export const CustomerNavbar: React.FC<Props> = ({ activeTab, setActiveTab }) => 
               <ArrowUpRight className="w-3.5 h-3.5" />
               <span>{t.rechargeNow}</span>
             </button>
+
+            {/* Notification Bell Dropdown */}
+            <NotificationBellModal variant="customer" onNavigateTab={setActiveTab} />
 
             {/* User Profile Mini Tab Trigger */}
             <button
