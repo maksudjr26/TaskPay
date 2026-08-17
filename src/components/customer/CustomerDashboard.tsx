@@ -37,7 +37,7 @@ export const CustomerDashboard: React.FC<Props> = ({ setActiveTab, onOpenTaskMod
 
   // Today's completed tasks
   const today = new Date().toISOString().split('T')[0];
-  const todaySubmissions = submissions.filter(s => s.userId === currentUser.id && s.completedAt.includes(today));
+  const todaySubmissions = submissions.filter(s => s.userId === currentUser.id && (s.completedAt || '').includes(today));
   const activeTasks = tasks.filter(t => t.status === 'active');
   const featuredTask = activeTasks[0];
 

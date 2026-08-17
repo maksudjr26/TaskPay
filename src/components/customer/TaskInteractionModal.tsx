@@ -17,9 +17,10 @@ import { motion, AnimatePresence } from 'motion/react';
 interface Props {
   task: Task;
   onClose: () => void;
+  onTaskCompleted?: () => void;
 }
 
-export const TaskInteractionModal: React.FC<Props> = ({ task, onClose }) => {
+export const TaskInteractionModal: React.FC<Props> = ({ task, onClose, onTaskCompleted }) => {
   const { t, lang, completeTask, settings } = useApp();
   const [captchaCode, setCaptchaCode] = useState('');
   const [captchaInput, setCaptchaInput] = useState('');

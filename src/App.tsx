@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { Component, useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { CustomerNavbar } from './components/customer/CustomerNavbar';
 import { CustomerBottomNav } from './components/customer/CustomerBottomNav';
@@ -355,10 +355,76 @@ const MainLayout: React.FC = () => {
   );
 };
 
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class AppErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('AppErrorBoundary caught error:', error, errorInfo);
+  }
+
+  handleReset = () => {
+    localStorage.removeItem('taskpay_customer_id_v4');
+    localStorage.removeItem('taskpay_admin_auth_v4');
+    this.setState({ hasError: false });
+    window.location.reload();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-slate-850 p-6 sm:p-8 rounded-3xl border border-slate-750 text-white shadow-2xl text-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-black">Something went wrong / সাময়িক ত্রুটি হয়েছে</h2>
+            <p className="text-xs sm:text-sm text-slate-300">
+              The page encountered a minor render issue. Please click below to refresh and resume your session smoothly.
+            </p>
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs sm:text-sm transition-all"
+              >
+                Reload Page / পেজ রিফ্রেশ করুন
+              </button>
+              <button
+                onClick={this.handleReset}
+                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold rounded-xl text-xs transition-all"
+              >
+                Reset Session & Login Again
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   return (
-    <AppProvider>
-      <MainLayout />
-    </AppProvider>
+    <AppErrorBoundary>
+      <AppProvider>
+        <MainLayout />
+      </AppProvider>
+    </AppErrorBoundary>
   );
 }

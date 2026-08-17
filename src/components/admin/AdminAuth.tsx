@@ -12,9 +12,10 @@ import {
 
 interface Props {
   onSuccess?: () => void;
+  onAuthSuccess?: () => void;
 }
 
-export const AdminAuth: React.FC<Props> = ({ onSuccess }) => {
+export const AdminAuth: React.FC<Props> = ({ onSuccess, onAuthSuccess }) => {
   const { loginAdmin, lang, t } = useApp();
 
   const [username, setUsername] = useState<string>('');
@@ -41,6 +42,7 @@ export const AdminAuth: React.FC<Props> = ({ onSuccess }) => {
     setIsSubmitting(false);
 
     if (success) {
+      if (onAuthSuccess) onAuthSuccess();
       if (onSuccess) onSuccess();
     } else {
       setErrorMessage(lang === 'bn' ? 'ইউজারনেম বা পাসওয়ার্ড সঠিক নয়' : 'Invalid admin credentials');

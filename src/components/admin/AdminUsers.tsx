@@ -28,6 +28,7 @@ export const AdminUsers: React.FC = () => {
   const [selectedUserForBalance, setSelectedUserForBalance] = useState<User | null>(null);
   const [adjustAmount, setAdjustAmount] = useState('');
   const [adjustType, setAdjustType] = useState<'add' | 'deduct'>('add');
+  const [adjustBalanceType, setAdjustBalanceType] = useState<'deposit' | 'task' | 'total'>('deposit');
   const [adjustReason, setAdjustReason] = useState('');
 
   const customerList = users.filter(u => u.role === 'customer');
@@ -53,7 +54,7 @@ export const AdminUsers: React.FC = () => {
     const num = parseFloat(adjustAmount);
     if (!num || num <= 0) return;
 
-    adjustUserBalance(selectedUserForBalance.id, num, adjustType, adjustReason || 'Manual adjustment');
+    adjustUserBalance(selectedUserForBalance.id, num, adjustType, adjustBalanceType, adjustReason || 'Manual adjustment');
     setSelectedUserForBalance(null);
     setAdjustAmount('');
     setAdjustReason('');
@@ -252,7 +253,7 @@ export const AdminUsers: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-indigo-600" />
-                <span>{t.adjustBalanceModalTitle}</span>
+                <span>{lang === 'bn' ? 'ব্যালেন্স সমন্বয় (Adjust Balance)' : 'Adjust User Balance'}</span>
               </h3>
               <button
                 onClick={() => setSelectedUserForBalance(null)}
@@ -295,10 +296,26 @@ export const AdminUsers: React.FC = () => {
                 </button>
               </div>
 
+              {/* Balance Type / Wallet */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Target Balance Wallet
+                </label>
+                <select
+                  value={adjustBalanceType}
+                  onChange={(e) => setAdjustBalanceType(e.target.value as 'deposit' | 'task' | 'total')}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold outline-none focus:border-indigo-500 bg-white"
+                >
+                  <option value="deposit">Deposit Wallet (ডিপোজিট ব্যালেন্স)</option>
+                  <option value="task">Task Earning Wallet (টাস্ক আয় ব্যালেন্স)</option>
+                  <option value="total">Total Balance (সার্বিক ব্যালেন্স)</option>
+                </select>
+              </div>
+
               {/* Amount */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {t.amount} (৳)
+                  {lang === 'bn' ? 'টাকার পরিমাণ' : 'Amount'} (৳)
                 </label>
                 <input
                   type="number"

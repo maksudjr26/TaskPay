@@ -11,9 +11,12 @@ import {
   TaskSubmission,
   Language,
   UserRole,
+  AccountStatus,
   ZoneType,
   UserTier,
-  TierAnnouncement
+  TierAnnouncement,
+  AppNotification,
+  NotificationPreferences
 } from '../types';
 import {
   initialUsers,
@@ -24,7 +27,8 @@ import {
   initialWithdrawals,
   initialTransactions,
   initialSubmissions,
-  initialAnnouncements
+  initialAnnouncements,
+  initialNotifications
 } from '../utils/mockData';
 import { translations } from '../utils/translations';
 
@@ -59,6 +63,19 @@ interface AppContextType {
   toasts: Toast[];
   currentRoleView: UserRole;
   
+  // Notifications
+  notifications: AppNotification[];
+  notificationPreferences: NotificationPreferences;
+  customerUnreadCount: number;
+  adminUnreadCount: number;
+  addNotification: (notif: Omit<AppNotification, 'id' | 'createdAt' | 'read'>) => void;
+  markNotificationAsRead: (id: string) => void;
+  markAllNotificationsAsRead: (target?: 'admin' | 'customer') => void;
+  deleteNotification: (id: string) => void;
+  clearAllNotifications: (target?: 'admin' | 'customer') => void;
+  updateNotificationPreferences: (prefs: Partial<NotificationPreferences>) => void;
+  playNotificationSound: () => void;
+
   // Auth & User Actions
   setLanguage: (lang: Language) => void;
   setCurrentRoleView: (role: UserRole) => void;
@@ -197,6 +214,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return (saved as Language) || 'bn';
   });
 
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => {
+    const saved = localStorage.getItem('taskpay_notifications_v1');
+    return saved ? JSON.parse(saved) : initialNotifications;
+  });
+
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(() => {
+    const saved = localStorage.getItem('taskpay_notif_prefs');
+    return saved ? JSON.parse(saved) : {
+      soundEnabled: true,
+      depositAlerts: true,
+      withdrawalAlerts: true,
+      taskRewardAlerts: true,
+      systemAlerts: true
+    };
+  });
+
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   // Persist state
@@ -207,6 +240,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem('taskpay_users_clean_v4', JSON.stringify(users));
   }, [users]);
+
+  useEffect(() => {
+    localStorage.setItem('taskpay_notifications_v1', JSON.stringify(notifications));
+  }, [notifications]);
+
+  useEffect(() => {
+    localStorage.setItem('taskpay_notif_prefs', JSON.stringify(notificationPreferences));
+  }, [notificationPreferences]);
 
   useEffect(() => {
     if (currentCustomerId) {
@@ -263,8 +304,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const isCustomerLoggedIn = !!(currentCustomerId && users.some(u => u.id === currentCustomerId && u.role === 'customer'));
 
   // Active current user derivation
-  const adminUser = users.find(u => u.role === 'admin') || initialUsers[0];
-  const loggedCustomer = currentCustomerId ? users.find(u => u.id === currentCustomerId) : null;
+  const defaultFields: Partial<User> = {
+    balance: 0,
+    depositBalance: 0,
+    taskBalance: 0,
+    totalEarned: 0,
+    totalDeposited: 0,
+    totalWithdrawn: 0,
+    tasksCompletedCount: 0,
+    status: 'inactive',
+    userType: 'General',
+    zone: 'Dhaka',
+    name: 'Customer',
+    phone: '',
+    role: 'customer',
+    joinedDate: new Date().toISOString().split('T')[0]
+  };
+
+  const rawAdmin = users.find(u => u.role === 'admin') || initialUsers[0];
+  const adminUser: User = { ...defaultFields, ...rawAdmin, role: 'admin', status: 'active', userType: (rawAdmin.userType || 'VIP') as UserTier } as User;
+  const rawCustomer = currentCustomerId ? users.find(u => u.id === currentCustomerId) : null;
+  const loggedCustomer: User | null = rawCustomer ? ({ ...defaultFields, ...rawCustomer } as User) : null;
 
   const currentUser: User = currentRoleView === 'admin'
     ? adminUser
@@ -318,6 +378,102 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // ==========================================
+  // Notification Engine & Audio Synthesizer
+  // ==========================================
+
+  const playNotificationSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, now); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.12); // A5
+
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.35);
+    } catch {
+      // Audio playback ignore if blocked
+    }
+  };
+
+  const addNotification = (notif: Omit<AppNotification, 'id' | 'createdAt' | 'read'>) => {
+    if (notif.category === 'deposit' && !notificationPreferences.depositAlerts) return;
+    if (notif.category === 'withdrawal' && !notificationPreferences.withdrawalAlerts) return;
+    if (notif.category === 'task' && !notificationPreferences.taskRewardAlerts) return;
+    if (notif.category === 'system' && !notificationPreferences.systemAlerts) return;
+
+    const newNotif: AppNotification = {
+      ...notif,
+      id: 'notif_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + new Date().toLocaleDateString(),
+      read: false
+    };
+
+    setNotifications(prev => [newNotif, ...prev]);
+
+    if (notificationPreferences.soundEnabled) {
+      playNotificationSound();
+    }
+  };
+
+  const markNotificationAsRead = (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const markAllNotificationsAsRead = (target?: 'admin' | 'customer') => {
+    setNotifications(prev => prev.map(n => {
+      if (!target) return { ...n, read: true };
+      if (target === 'admin' && (n.target === 'admin' || n.target === 'all')) {
+        return { ...n, read: true };
+      }
+      if (target === 'customer' && (n.target === 'customer' || n.target === 'all' || n.userId === currentUser.id)) {
+        return { ...n, read: true };
+      }
+      return n;
+    }));
+  };
+
+  const deleteNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  const clearAllNotifications = (target?: 'admin' | 'customer') => {
+    setNotifications(prev => prev.filter(n => {
+      if (target === 'admin') {
+        return n.target !== 'admin' && n.target !== 'all';
+      }
+      if (target === 'customer') {
+        return n.target === 'admin';
+      }
+      return false;
+    }));
+  };
+
+  const updateNotificationPreferences = (prefs: Partial<NotificationPreferences>) => {
+    setNotificationPreferences(prev => ({ ...prev, ...prefs }));
+    showToast(lang === 'bn' ? 'নোটিফিকেশন সেটিংস আপডেট হয়েছে' : 'Notification settings updated', 'info');
+  };
+
+  const customerUnreadCount = notifications.filter(n => 
+    !n.read && (n.target === 'customer' || n.target === 'all' || (currentUser.id && n.userId === currentUser.id))
+  ).length;
+
+  const adminUnreadCount = notifications.filter(n => 
+    !n.read && (n.target === 'admin' || n.target === 'all')
+  ).length;
+
+  // ==========================================
   // Auth Operations
   // ==========================================
 
@@ -355,6 +511,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUsers(prev => [newUser, ...prev]);
     setCurrentCustomerId(newUser.id);
     setCurrentRoleView('customer');
+
+    // Notification for Admin
+    addNotification({
+      target: 'admin',
+      category: 'account',
+      type: 'info',
+      title: 'New Member Registration',
+      titleBn: 'নতুন সদস্যের রেজিস্ট্রেশন',
+      message: `${name.trim()} (${cleanPhone}) registered in ${zone} working zone.`,
+      messageBn: `${name.trim()} (${cleanPhone}) ${zone} জোনে নতুন একাউন্ট খুলেছেন।`,
+      actionTab: 'admin_users'
+    });
+
+    // Welcome Notification for Customer
+    addNotification({
+      target: 'customer',
+      userId: newUser.id,
+      category: 'system',
+      type: 'success',
+      title: 'Welcome to TaskPay!',
+      titleBn: 'TaskPay-তে স্বাগতম!',
+      message: `Hello ${name.trim()}! Recharge ৳500 to activate your account and start claiming daily high-rate tasks.`,
+      messageBn: `স্বাগতম ${name.trim()}! একাউন্ট সক্রিয় করতে রিচার্জ করুন এবং আকর্ষণীয় রিওয়ার্ড অর্জন করুন।`,
+      actionTab: 'deposit'
+    });
 
     showToast(lang === 'bn' ? 'রেজিস্ট্রেশন সফল হয়েছে! একাউন্ট সক্রিয় করতে রিচার্জ সম্পন্ন করুন।' : 'Registration successful! Recharge to activate your account.', 'success');
     triggerConfetti();
@@ -534,6 +715,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setDeposits(prev => [newDeposit, ...prev]);
     setTransactions(prev => [newTrx, ...prev]);
+
+    // Notification for Admin
+    addNotification({
+      target: 'admin',
+      category: 'deposit',
+      type: 'warning',
+      title: 'New Deposit Request',
+      titleBn: 'নতুন ডিপোজিট রিকোয়েস্ট এসেছে',
+      message: `৳${amount} via ${methodCode.toUpperCase()} by ${currentUser.name} (${currentUser.phone}). TrxID: ${trxId.trim().toUpperCase()}`,
+      messageBn: `${currentUser.name} (${currentUser.phone}) ৳${amount} ডিপোজিট আবেদন করেছেন। মেথড: ${pm ? (lang === 'bn' ? pm.nameBn : pm.name) : methodCode.toUpperCase()}, TrxID: ${trxId.trim().toUpperCase()}`,
+      actionTab: 'admin_deposits',
+      amount,
+      referenceId: trxId.trim().toUpperCase()
+    });
+
+    // Notification for Customer
+    addNotification({
+      target: 'customer',
+      userId: currentUser.id,
+      category: 'deposit',
+      type: 'info',
+      title: 'Deposit Request Submitted',
+      titleBn: 'ডিপোজিট আবেদন পর্যালোচনাধীন',
+      message: `Your deposit request of ৳${amount} via ${methodCode.toUpperCase()} (TrxID: ${trxId.trim().toUpperCase()}) is being verified by admin.`,
+      messageBn: `আপনার ৳${amount} ডিপোজিট আবেদনটি (মেথড: ${pm ? (lang === 'bn' ? pm.nameBn : pm.name) : methodCode.toUpperCase()}, TrxID: ${trxId.trim().toUpperCase()}) ভেরিফিকেশনে রয়েছে।`,
+      actionTab: 'history',
+      amount,
+      referenceId: trxId.trim().toUpperCase()
+    });
+
     showToast(t.depositSuccessMsg, 'success');
     return true;
   };
@@ -598,6 +809,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return t;
     }));
 
+    // 4. Send Customer Success Notification
+    addNotification({
+      target: 'customer',
+      userId: deposit.userId,
+      category: 'deposit',
+      type: 'success',
+      title: 'Deposit Approved & Added!',
+      titleBn: 'ডিপোজিট সফলভাবে অনুমোদিত হয়েছে!',
+      message: `৳${deposit.amount} has been approved and added to your Deposit Balance.${deposit.packageTier ? ` Tier promoted to ${deposit.packageTier}!` : ''}`,
+      messageBn: `৳${deposit.amount} সফলভাবে অনুমোদিত হয়ে আপনার ডিপোজিট ব্যালেন্সে জমা হয়েছে!${deposit.packageTier ? ` আপনার টিয়ার এখন ${deposit.packageTier}!` : ''}`,
+      actionTab: 'deposit',
+      amount: deposit.amount,
+      referenceId: deposit.transactionId
+    });
+
+    // 5. Send Admin Notification
+    addNotification({
+      target: 'admin',
+      category: 'deposit',
+      type: 'success',
+      title: 'Deposit Approved',
+      titleBn: 'ডিপোজিট অনুমোদন সম্পন্ন',
+      message: `Approved ৳${deposit.amount} for ${deposit.userName} (${deposit.userPhone}). TrxID: ${deposit.transactionId}`,
+      messageBn: `${deposit.userName} (${deposit.userPhone})-এর ৳${deposit.amount} ডিপোজিট সফলভাবে অনুমোদিত হয়েছে।`,
+      actionTab: 'admin_deposits',
+      amount: deposit.amount,
+      referenceId: deposit.transactionId
+    });
+
     showToast(
       lang === 'bn' 
         ? `৳${deposit.amount} ডিপোজিট অনুমোদিত হয়েছে এবং ডিপোজিট ব্যালেন্সে যোগ হয়েছে!` 
@@ -624,6 +864,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return t;
     }));
+
+    // Customer Notification (Reject)
+    addNotification({
+      target: 'customer',
+      userId: deposit.userId,
+      category: 'deposit',
+      type: 'error',
+      title: 'Deposit Request Rejected',
+      titleBn: 'ডিপোজিট আবেদন বাতিল করা হয়েছে',
+      message: `Your deposit request of ৳${deposit.amount} was rejected. Reason: ${reason}`,
+      messageBn: `আপনার ৳${deposit.amount} ডিপোজিট আবেদনটি বাতিল করা হয়েছে। কারণ: ${reason}`,
+      actionTab: 'history',
+      amount: deposit.amount,
+      referenceId: deposit.transactionId
+    });
+
+    // Admin Notification
+    addNotification({
+      target: 'admin',
+      category: 'deposit',
+      type: 'error',
+      title: 'Deposit Request Rejected',
+      titleBn: 'ডিপোজিট বাতিল সম্পন্ন',
+      message: `Rejected deposit of ৳${deposit.amount} for ${deposit.userName}. Reason: ${reason}`,
+      messageBn: `${deposit.userName}-এর ৳${deposit.amount} ডিপোজিট বাতিল করা হয়েছে। কারণ: ${reason}`,
+      actionTab: 'admin_deposits',
+      amount: deposit.amount
+    });
 
     showToast(lang === 'bn' ? 'ডিপোজিট রিকোয়েস্ট বাতিল করা হয়েছে' : 'Deposit request rejected', 'warning');
   };
@@ -726,6 +994,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setWithdrawals(prev => [newWithdraw, ...prev]);
     setTransactions(prev => [newTrx, ...prev]);
+
+    // Admin Notification for Withdrawal Request
+    addNotification({
+      target: 'admin',
+      category: 'withdrawal',
+      type: 'warning',
+      title: 'New Withdrawal Request',
+      titleBn: 'নতুন ক্যাশআউট/উইথড্রল রিকোয়েস্ট',
+      message: `৳${amount} to ${recipientNumber} via ${methodCode.toUpperCase()} by ${currentUser.name} (${currentUser.phone}). Source: ${source}`,
+      messageBn: `${currentUser.name} (${currentUser.phone}) ৳${amount} উত্তোলন আবেদন করেছেন। মেথড: ${methodCode.toUpperCase()}, নম্বর: ${recipientNumber}`,
+      actionTab: 'admin_withdrawals',
+      amount,
+      referenceId: newWithdraw.id
+    });
+
+    // Customer Notification for Withdrawal Submitted
+    addNotification({
+      target: 'customer',
+      userId: currentUser.id,
+      category: 'withdrawal',
+      type: 'info',
+      title: 'Withdrawal Submitted',
+      titleBn: 'উইথড্র আবেদন পর্যালোচনাধীন',
+      message: `Your withdrawal request of ৳${amount} to ${recipientNumber} (${methodCode.toUpperCase()}) is being processed.`,
+      messageBn: `আপনার ${recipientNumber} নম্বরে ৳${amount} উত্তোলন আবেদনটি (${methodCode.toUpperCase()}) পর্যালোচনায় রয়েছে।`,
+      actionTab: 'history',
+      amount,
+      referenceId: newWithdraw.id
+    });
+
     showToast(t.withdrawSuccessMsg, 'success');
     return { success: true };
   };
@@ -734,11 +1032,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const w = withdrawals.find(item => item.id === withdrawalId);
     if (!w || w.status !== 'pending') return;
 
+    const finalTxnRef = transactionRef || 'TXN_OUT_' + Math.floor(100000 + Math.random() * 900000);
+
     setWithdrawals(prev => prev.map(item => item.id === withdrawalId ? {
       ...item,
       status: 'approved',
       reviewedAt: new Date().toLocaleString(),
-      transactionRef: transactionRef || 'TXN_OUT_' + Math.floor(100000 + Math.random() * 900000)
+      transactionRef: finalTxnRef
     } : item));
 
     setUsers(prev => prev.map(u => u.id === w.userId ? {
@@ -747,6 +1047,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } : u));
 
     setTransactions(prev => prev.map(t => t.referenceId === withdrawalId ? { ...t, status: 'completed' } : t));
+
+    // Customer Notification (Success)
+    addNotification({
+      target: 'customer',
+      userId: w.userId,
+      category: 'withdrawal',
+      type: 'success',
+      title: 'Withdrawal Successful & Sent!',
+      titleBn: 'উইথড্রল সফলভাবে পাঠানো হয়েছে!',
+      message: `৳${w.amount} has been sent to your ${w.method.toUpperCase()} account (${w.recipientNumber}). TrxRef: ${finalTxnRef}`,
+      messageBn: `৳${w.amount} সফলভাবে আপনার ${w.method.toUpperCase()} নম্বরে (${w.recipientNumber}) পাঠানো হয়েছে। TrxRef: ${finalTxnRef}`,
+      actionTab: 'history',
+      amount: w.amount,
+      referenceId: finalTxnRef
+    });
+
+    // Admin Notification
+    addNotification({
+      target: 'admin',
+      category: 'withdrawal',
+      type: 'success',
+      title: 'Withdrawal Dispatched',
+      titleBn: 'উইথড্রল সফলভাবে পরিশোধিত',
+      message: `Dispatched ৳${w.amount} to ${w.userName} (${w.recipientNumber} - ${w.method.toUpperCase()}). TrxRef: ${finalTxnRef}`,
+      messageBn: `${w.userName} (${w.recipientNumber})-এর ৳${w.amount} উইথড্রল সফলভাবে পাঠানো হয়েছে।`,
+      actionTab: 'admin_withdrawals',
+      amount: w.amount,
+      referenceId: finalTxnRef
+    });
 
     showToast(lang === 'bn' ? `৳${w.amount} উইথড্র সফলভাবে অনুমোদিত হয়েছে` : `Withdrawal ৳${w.amount} approved and sent`, 'success');
   };
@@ -778,6 +1107,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setTransactions(prev => prev.map(t => t.referenceId === withdrawalId ? { ...t, status: 'rejected' } : t));
 
+    // Customer Notification (Rejected & Refunded)
+    addNotification({
+      target: 'customer',
+      userId: w.userId,
+      category: 'withdrawal',
+      type: 'error',
+      title: 'Withdrawal Rejected & Refunded',
+      titleBn: 'উইথড্রল বাতিল ও ব্যালেন্সে রিফান্ড',
+      message: `Your withdrawal of ৳${w.amount} was rejected and fully refunded to your Task Balance. Reason: ${reason}`,
+      messageBn: `আপনার ৳${w.amount} উইথড্রল আবেদনটি বাতিল হয়েছে এবং টাকা টাস্ক ব্যালেন্সে ফেরত দেওয়া হয়েছে। কারণ: ${reason}`,
+      actionTab: 'history',
+      amount: w.amount,
+      referenceId: w.id
+    });
+
+    // Admin Notification
+    addNotification({
+      target: 'admin',
+      category: 'withdrawal',
+      type: 'error',
+      title: 'Withdrawal Rejected',
+      titleBn: 'উইথড্রল বাতিল সম্পন্ন',
+      message: `Rejected withdrawal of ৳${w.amount} for ${w.userName}. Balance refunded. Reason: ${reason}`,
+      messageBn: `${w.userName}-এর ৳${w.amount} উইথড্রল বাতিল ও ব্যালেন্সে রিফান্ড করা হয়েছে। কারণ: ${reason}`,
+      actionTab: 'admin_withdrawals',
+      amount: w.amount
+    });
+
     showToast(lang === 'bn' ? `উইথড্র বাতিল এবং ৳${w.amount} ব্যালেন্সে রিফান্ড করা হয়েছে` : `Withdrawal rejected and ৳${w.amount} refunded to balance`, 'info');
   };
 
@@ -801,12 +1158,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: t.taskLimitReached };
     }
 
-    // Exact requested multipliers:
-    // General: 1.0x
-    // Silver: 1.25x
-    // Gold: 1.75x
-    // Platinum: 2.25x
-    // VIP: 3.0x
+    // Multipliers
     const tierMultiplier = currentUser.userType === 'VIP' 
       ? 3.0 
       : currentUser.userType === 'Platinum' 
@@ -864,6 +1216,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSubmissions(prev => [newSubmission, ...prev]);
     setTransactions(prev => [newTrx, ...prev]);
 
+    // Customer Notification
+    addNotification({
+      target: 'customer',
+      userId: currentUser.id,
+      category: 'task',
+      type: 'success',
+      title: 'Task Reward Credited!',
+      titleBn: 'টাস্ক রিওয়ার্ড অর্জিত হয়েছে!',
+      message: `৳${finalReward} earned from "${task.title}" (${tierMultiplier}x tier bonus rate applied).`,
+      messageBn: `"${task.titleBn}" থেকে ৳${finalReward} আপনার টাস্ক ব্যালেন্সে যুক্ত হয়েছে (${tierMultiplier}x বোনাস রেট সহ)।`,
+      actionTab: 'tasks',
+      amount: finalReward
+    });
+
+    // Admin Notification
+    addNotification({
+      target: 'admin',
+      category: 'task',
+      type: 'info',
+      title: 'Task Completed by Member',
+      titleBn: 'সদস্য টাস্ক সম্পন্ন করেছেন',
+      message: `${currentUser.name} (${currentUser.phone}) completed "${task.title}" and earned ৳${finalReward}.`,
+      messageBn: `${currentUser.name} (${currentUser.phone}) "${task.titleBn}" সম্পন্ন করে ৳${finalReward} অর্জন করেছেন।`,
+      actionTab: 'admin_submissions',
+      amount: finalReward
+    });
+
     showToast(
       lang === 'bn' 
         ? `টাস্ক সম্পন্ন! ৳${finalReward} আপনার টাস্ক আর্নিং ব্যালেন্সে যোগ হয়েছে (${tierMultiplier}x বোনাস রেট)` 
@@ -895,12 +1274,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const approveSubmission = (submissionId: string) => {
+    const sub = submissions.find(s => s.id === submissionId);
     setSubmissions(prev => prev.map(s => s.id === submissionId ? { ...s, status: 'approved' } : s));
+    
+    if (sub) {
+      addNotification({
+        target: 'customer',
+        userId: sub.userId,
+        category: 'task',
+        type: 'success',
+        title: 'Task Submission Approved',
+        titleBn: 'টাস্ক সাবমিশন অনুমোদিত হয়েছে',
+        message: `Your proof for "${sub.taskTitle}" has been verified and approved by admin.`,
+        messageBn: `"${sub.taskTitleBn || sub.taskTitle}" টাস্কের প্রমাণপত্র অ্যাডমিন কর্তৃক যাচাই ও অনুমোদন করা হয়েছে।`,
+        actionTab: 'tasks'
+      });
+    }
+
     showToast(lang === 'bn' ? 'টাস্ক সাবমিশন অনুমোদিত হয়েছে' : 'Submission approved', 'success');
   };
 
   const rejectSubmission = (submissionId: string, reason: string) => {
+    const sub = submissions.find(s => s.id === submissionId);
     setSubmissions(prev => prev.map(s => s.id === submissionId ? { ...s, status: 'rejected', rejectReason: reason } : s));
+
+    if (sub) {
+      addNotification({
+        target: 'customer',
+        userId: sub.userId,
+        category: 'task',
+        type: 'error',
+        title: 'Task Submission Rejected',
+        titleBn: 'টাস্ক সাবমিশন বাতিল করা হয়েছে',
+        message: `Your proof for "${sub.taskTitle}" was rejected. Reason: ${reason}`,
+        messageBn: `"${sub.taskTitleBn || sub.taskTitle}" টাস্কের সাবমিশন বাতিল হয়েছে। কারণ: ${reason}`,
+        actionTab: 'tasks'
+      });
+    }
+
     showToast(lang === 'bn' ? 'টাস্ক সাবমিশন বাতিল করা হয়েছে' : 'Submission rejected', 'warning');
   };
 
@@ -915,6 +1326,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString().split('T')[0]
     };
     setAnnouncements(prev => [newAnn, ...prev]);
+
+    // Send Broadcast Announcement Notification to Target Users
+    addNotification({
+      target: ann.target === 'all' ? 'all' : 'customer',
+      category: 'tier',
+      type: 'info',
+      title: ann.title,
+      titleBn: ann.titleBn,
+      message: ann.message,
+      messageBn: ann.messageBn,
+      actionTab: 'dashboard'
+    });
+
     showToast(lang === 'bn' ? 'নতুন ঘোষণা যুক্ত হয়েছে' : 'Announcement created successfully', 'success');
   };
 
@@ -939,7 +1363,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const toggleUserStatus = (userId: string) => {
     setUsers(prev => prev.map(u => {
       if (u.id === userId) {
-        const nextStatus = u.status === 'active' ? 'banned' : 'active';
+        const nextStatus: AccountStatus = u.status === 'active' ? 'inactive' : 'active';
         return { ...u, status: nextStatus };
       }
       return u;
@@ -1000,6 +1424,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setTransactions(prev => [newTrx, ...prev]);
+
+    // Customer Notification
+    addNotification({
+      target: 'customer',
+      userId,
+      category: 'account',
+      type: type === 'add' ? 'success' : 'warning',
+      title: `Balance Adjustment: ৳${amount} ${type === 'add' ? 'Credited' : 'Deducted'}`,
+      titleBn: `ব্যালেন্স সমন্বয়: ৳${amount} ${type === 'add' ? 'যোগ' : 'কর্তন'} হয়েছে`,
+      message: `Admin adjusted your ${balanceType} balance by ৳${amount} (${type === 'add' ? 'Add' : 'Deduct'}). Reason: ${reason || 'System update'}`,
+      messageBn: `অ্যাডমিন আপনার ${balanceType} ব্যালেন্স ৳${amount} ${type === 'add' ? 'যোগ' : 'কর্তন'} করেছেন। কারণ: ${reason || 'সিস্টেম আপডেট'}`,
+      actionTab: 'profile',
+      amount
+    });
+
     showToast(lang === 'bn' ? `ব্যালেন্স সমন্বয় সম্পন্ন হয়েছে (৳${amount})` : `Balance adjustment completed (৳${amount})`, 'success');
   };
 
@@ -1033,6 +1472,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         t,
         toasts,
         currentRoleView,
+        notifications,
+        notificationPreferences,
+        customerUnreadCount,
+        adminUnreadCount,
+        addNotification,
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
+        deleteNotification,
+        clearAllNotifications,
+        updateNotificationPreferences,
+        playNotificationSound,
         setLanguage,
         setCurrentRoleView,
         registerCustomer,

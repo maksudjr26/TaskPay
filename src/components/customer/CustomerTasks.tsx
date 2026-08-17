@@ -125,7 +125,7 @@ export const CustomerTasks: React.FC<Props> = ({ onOpenTaskModal, setActiveTab }
           
           // User completed count today for this task
           const completedCount = submissions.filter(
-            s => s.userId === currentUser.id && s.taskId === task.id && s.completedAt.includes(today)
+            s => s.userId === currentUser.id && s.taskId === task.id && (s.completedAt || '').includes(today)
           ).length;
 
           const isLimitReached = completedCount >= task.dailyLimit;

@@ -34,8 +34,7 @@ export const TierAnnouncementBanner: React.FC<Props> = ({ onActionClick }) => {
   const badgeText = isBn ? targetAnnouncement.badgeTextBn || targetAnnouncement.badgeText : targetAnnouncement.badgeText;
   const actionText = isBn ? targetAnnouncement.actionTextBn || targetAnnouncement.actionText : targetAnnouncement.actionText;
 
-  // Visual styling based on type
-  const themeStyles = {
+  const themeStylesMap = {
     promotion: {
       container: 'bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-emerald-500/10 border-amber-300/80 text-amber-950',
       badge: 'bg-amber-500 text-white font-bold',
@@ -60,7 +59,9 @@ export const TierAnnouncementBanner: React.FC<Props> = ({ onActionClick }) => {
       icon: <Bell className="w-4 h-4 text-emerald-600" />,
       btn: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20'
     }
-  }[targetAnnouncement.type || 'info'];
+  };
+
+  const themeStyles = (targetAnnouncement.type && themeStylesMap[targetAnnouncement.type as keyof typeof themeStylesMap]) || themeStylesMap.info;
 
   return (
     <div

@@ -24,7 +24,11 @@ import {
   Crown
 } from 'lucide-react';
 
-export const CustomerDeposit: React.FC = () => {
+interface Props {
+  setActiveTab?: (tab: string) => void;
+}
+
+export const CustomerDeposit: React.FC<Props> = ({ setActiveTab }) => {
   const { paymentMethods, submitDeposit, deposits, currentUser, t, lang, settings, showToast } = useApp();
   const [selectedPackageId, setSelectedPackageId] = useState<string>('pkg_general_500');
   const [selectedMethodCode, setSelectedMethodCode] = useState<PaymentMethodCode>('bkash');
