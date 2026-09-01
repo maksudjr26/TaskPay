@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { SiteHistoryLiveStats } from '../common/SiteHistoryLiveStats';
 import { UserTierBadge } from '../common/UserTierBadge';
 import { TierAnnouncementBanner } from '../common/TierAnnouncementBanner';
+import { CustomerTierProgressBar } from './CustomerTierProgressBar';
 import {
   Wallet,
   ArrowUpRight,
@@ -20,19 +21,32 @@ import {
   Gift,
   Coins,
   CreditCard,
-  Crown
+  Crown,
+  Lock,
+  PlusCircle
 } from 'lucide-react';
 
 interface Props {
   setActiveTab: (tab: string) => void;
   onOpenTaskModal: (task: any) => void;
+  isAccountActive?: boolean;
 }
 
-export const CustomerDashboard: React.FC<Props> = ({ setActiveTab, onOpenTaskModal }) => {
+export const CustomerDashboard: React.FC<Props> = ({
+  setActiveTab,
+  onOpenTaskModal,
+  isAccountActive: isAccountActiveProp
+}) => {
   const { currentUser, t, lang, settings, tasks, transactions, submissions } = useApp();
 
-  const isInactive = currentUser.status === 'inactive';
-  const minActivation = settings.minActivationAmount;
+  const isInactive =
+    isAccountActiveProp !== undefined
+      ? !isAccountActiveProp
+      : currentUser.status === 'inactive' ||
+        (currentUser.depositBalance ?? 0) < (settings.minActivationAmount || 500) &&
+        (currentUser.totalDeposited ?? 0) < (settings.minActivationAmount || 500);
+
+  const minActivation = settings.minActivationAmount || 500;
   const currentDepositProgress = Math.min(100, Math.round(((currentUser.totalDeposited || 0) / minActivation) * 100));
 
   // Today's completed tasks
@@ -173,7 +187,10 @@ export const CustomerDashboard: React.FC<Props> = ({ setActiveTab, onOpenTaskMod
         </div>
       )}
 
-      {/* 4. Separated Balances Grid (Deposit Balance & Task Complete Balance) */}
+      {/* 4. Tier & Membership Level-Up Visual Progress Bar */}
+      <CustomerTierProgressBar onUpgradeClick={() => setActiveTab('deposit')} />
+
+      {/* 5. Separated Balances Grid (Deposit Balance & Task Complete Balance) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Deposit Balance */}
         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-blue-100 shadow-xs hover:shadow-md transition-all relative overflow-hidden">
@@ -254,18 +271,23 @@ export const CustomerDashboard: React.FC<Props> = ({ setActiveTab, onOpenTaskMod
       <div className="grid grid-cols-4 gap-2 sm:gap-4">
         <button
           onClick={() => setActiveTab('deposit')}
-          className="bg-white hover:bg-emerald-50 border border-slate-200/80 p-3 sm:p-4 rounded-2xl text-center group transition-all shadow-xs flex flex-col items-center justify-center cursor-pointer"
+          className="bg-white hover:bg-emerald-50 border border-slate-200/80 p-3 sm:p-4 rounded-2xl text-center group transition-all shadow-xs flex flex-col items-center justify-center cursor-pointer relative"
         >
           <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-            <PlusCircleIcon className="w-5 h-5" />
+            <PlusCircle className="w-5 h-5" />
           </div>
           <span className="text-xs sm:text-sm font-bold text-slate-800">{t.navDeposit}</span>
         </button>
 
         <button
           onClick={() => setActiveTab('withdraw')}
-          className="bg-white hover:bg-teal-50 border border-slate-200/80 p-3 sm:p-4 rounded-2xl text-center group transition-all shadow-xs flex flex-col items-center justify-center cursor-pointer"
+          className="bg-white hover:bg-teal-50 border border-slate-200/80 p-3 sm:p-4 rounded-2xl text-center group transition-all shadow-xs flex flex-col items-center justify-center cursor-pointer relative"
         >
+          {isInactive && (
+            <span className="absolute top-2 right-2 p-1 rounded-md bg-amber-100 text-amber-800" title="Deposit ৳500 to unlock">
+              <Lock className="w-3 h-3" />
+            </span>
+          )}
           <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
             <ArrowUpRight className="w-5 h-5" />
           </div>
@@ -274,8 +296,13 @@ export const CustomerDashboard: React.FC<Props> = ({ setActiveTab, onOpenTaskMod
 
         <button
           onClick={() => setActiveTab('tasks')}
-          className="bg-white hover:bg-amber-50 border border-slate-200/80 p-3 sm:p-4 rounded-2xl text-center group transition-all shadow-xs flex flex-col items-center justify-center cursor-pointer"
+          className="bg-white hover:bg-amber-50 border border-slate-200/80 p-3 sm:p-4 rounded-2xl text-center group transition-all shadow-xs flex flex-col items-center justify-center cursor-pointer relative"
         >
+          {isInactive && (
+            <span className="absolute top-2 right-2 p-1 rounded-md bg-amber-100 text-amber-800" title="Deposit ৳500 to unlock">
+              <Lock className="w-3 h-3" />
+            </span>
+          )}
           <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
             <CheckSquare className="w-5 h-5" />
           </div>
@@ -312,6 +339,12 @@ export const CustomerDashboard: React.FC<Props> = ({ setActiveTab, onOpenTaskMod
                   <CheckCircle2 className="w-3 h-3 text-emerald-500" />
                   {t.taskReward}: <strong className="text-emerald-600">৳{featuredTask.reward}</strong>
                 </span>
+                {isInactive && (
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 flex items-center gap-1">
+                    <Lock className="w-2.5 h-2.5" />
+                    <span>{lang === 'bn' ? 'লক করা' : 'Locked'}</span>
+                  </span>
+                )}
               </div>
               <h3 className="text-base sm:text-lg font-bold text-slate-900 mt-1">
                 {lang === 'bn' ? featuredTask.titleBn : featuredTask.title}
@@ -324,10 +357,23 @@ export const CustomerDashboard: React.FC<Props> = ({ setActiveTab, onOpenTaskMod
 
           <button
             onClick={() => onOpenTaskModal(featuredTask)}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+            className={`px-5 py-2.5 font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer ${
+              isInactive
+                ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+            }`}
           >
-            <span>{t.startTask}</span>
-            <ChevronRight className="w-4 h-4" />
+            {isInactive ? (
+              <>
+                <Lock className="w-4 h-4" />
+                <span>{lang === 'bn' ? 'আনলক করুন (৳৫০০)' : 'Unlock Tasks (৳500)'}</span>
+              </>
+            ) : (
+              <>
+                <span>{t.startTask}</span>
+                <ChevronRight className="w-4 h-4" />
+              </>
+            )}
           </button>
         </div>
       )}

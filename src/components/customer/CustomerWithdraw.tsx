@@ -16,9 +16,13 @@ import {
 
 interface Props {
   setActiveTab: (tab: string) => void;
+  isAccountActive?: boolean;
 }
 
-export const CustomerWithdraw: React.FC<Props> = ({ setActiveTab }) => {
+export const CustomerWithdraw: React.FC<Props> = ({
+  setActiveTab,
+  isAccountActive: isAccountActiveProp
+}) => {
   const {
     currentUser,
     paymentMethods,
@@ -35,9 +39,18 @@ export const CustomerWithdraw: React.FC<Props> = ({ setActiveTab }) => {
   const [recipientNumber, setRecipientNumber] = useState<string>(currentUser.phone || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const isInactive = currentUser.status === 'inactive';
+  const minActivation = settings.minActivationAmount || 500;
+  const isInactive =
+    isAccountActiveProp !== undefined
+      ? !isAccountActiveProp
+      : currentUser.status === 'inactive' ||
+        (currentUser.depositBalance ?? 0) < minActivation &&
+        (currentUser.totalDeposited ?? 0) < minActivation;
   const minWithdraw = settings.minWithdrawAmount;
   const maxWithdraw = settings.maxWithdrawAmount;
+
+  const earningBalance = currentUser.taskBalance || 0;
+  const fixedDepositBalance = currentUser.depositBalance || 0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,8 +66,23 @@ export const CustomerWithdraw: React.FC<Props> = ({ setActiveTab }) => {
       return;
     }
 
-    if (numAmount > currentUser.balance) {
-      showToast(t.insufficientBalance, 'error');
+    if (maxWithdraw && numAmount > maxWithdraw) {
+      showToast(
+        lang === 'bn'
+          ? `সর্বোচ্চ একক উত্তোলন সীমা ৳${maxWithdraw}`
+          : `Maximum single withdrawal amount is ৳${maxWithdraw}`,
+        'error'
+      );
+      return;
+    }
+
+    if (numAmount > earningBalance) {
+      showToast(
+        lang === 'bn'
+          ? `উত্তোলনের জন্য পর্যাপ্ত টাস্ক আর্নিং ব্যালেন্স নেই (উপলব্ধ: ৳${earningBalance.toLocaleString()})। ফিক্সড ডিপোজিট ব্যালেন্স (৳${fixedDepositBalance.toLocaleString()}) সংরক্ষিত।`
+          : `Insufficient task earning balance (Available: ৳${earningBalance.toLocaleString()}). Fixed deposit is reserved.`,
+        'error'
+      );
       return;
     }
 
@@ -68,7 +96,7 @@ export const CustomerWithdraw: React.FC<Props> = ({ setActiveTab }) => {
     setIsSubmitting(false);
 
     if (res.success) {
-      // Clear or reset
+      setAmount('');
     }
   };
 
@@ -123,18 +151,39 @@ export const CustomerWithdraw: React.FC<Props> = ({ setActiveTab }) => {
         {/* Left Column: Balance overview & method */}
         <div className="lg:col-span-5 space-y-4">
           {/* Balance card */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-3">
-            <span className="text-xs font-semibold text-slate-500 block uppercase tracking-wider">
-              {t.withdrawableBalance}
-            </span>
-            <div className="text-3xl font-black text-slate-900 flex items-baseline gap-1">
-              <span className="text-emerald-600 text-2xl font-bold">৳</span>
-              <span>{currentUser.balance.toLocaleString()}</span>
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                {lang === 'bn' ? 'উত্তোলনযোগ্য টাস্ক আর্নিং ব্যালেন্স' : 'Withdrawable Earning Balance'}
+              </span>
+              <div className="text-3xl font-black text-emerald-600 flex items-baseline gap-1">
+                <span className="text-2xl font-bold">৳</span>
+                <span>{earningBalance.toLocaleString()}</span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                {lang === 'bn' ? 'শুধুমাত্র এই আর্নিং ব্যালেন্স উত্তোলন করা যাবে।' : 'Only this earning balance is eligible for withdrawal.'}
+              </p>
             </div>
 
-            <div className="pt-3 border-t border-slate-100 flex justify-between text-xs text-slate-500 font-medium">
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-700 flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                  {lang === 'bn' ? 'সংরক্ষিত ফিক্সড ডিপোজিট' : 'Reserved Fixed Balance'}
+                </span>
+                <span className="font-extrabold text-slate-900">৳{fixedDepositBalance.toLocaleString()}</span>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-tight">
+                {lang === 'bn' 
+                  ? 'লেভেল আপগ্রেড ও ডেইলি টাস্ক সক্রিয় রাখতে ডিপোজিট ব্যালেন্স স্থায়ীভাবে সংরক্ষিত থাকে।' 
+                  : 'Fixed balance is reserved to maintain your VIP level and daily task quotas.'}
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex justify-between text-xs text-slate-500 font-medium">
               <span>{t.minWithdraw}: ৳{minWithdraw}</span>
-              <span>{t.maxWithdraw}: ৳{maxWithdraw}</span>
+              {maxWithdraw && <span>{t.maxWithdraw}: ৳{maxWithdraw}</span>}
             </div>
           </div>
 

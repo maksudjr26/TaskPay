@@ -433,9 +433,15 @@ export const initialPaymentMethods: PaymentMethodConfig[] = [
 ];
 
 export const initialSettings: SystemSettings = {
-  minActivationAmount: 500, // 500 BDT required to activate account
-  minWithdrawAmount: 100, // 100 BDT minimum withdrawal
+  minActivationAmount: 500, // 500 BDT required to activate account (Level 1)
+  minWithdrawAmount: 100, // 100 BDT minimum withdrawal from Earning Balance
   maxWithdrawAmount: 25000,
+  referralBonusPercent: 5, // 5% bonus from referee's first approved deposit (credited to Fixed Balance)
+  level1Threshold: 500, // Level 1 (General): ৳500 cumulative fixed balance
+  level2Threshold: 1000, // Level 2 (Silver): ৳1,000 cumulative fixed balance (+৳500)
+  level3Threshold: 3000, // Level 3 (Gold): ৳3,000 cumulative fixed balance (+৳2,000)
+  level4Threshold: 6000, // Level 4 (Platinum): ৳6,000 cumulative fixed balance (+৳3,000)
+  level5Threshold: 10000, // Level 5 (VIP): ৳10,000+ cumulative fixed balance
   dailyTaskLimit: 15,
   currencySymbol: '৳',
   currencyCode: 'BDT',

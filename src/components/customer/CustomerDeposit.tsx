@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { PaymentMethodConfig, PaymentMethodCode, DepositPackage, UserTier } from '../../types';
 import { DEPOSIT_PACKAGES } from '../../utils/mockData';
-import { UserTierBadge } from '../common/UserTierBadge';
+import { UserTierBadge, calculateTierFromFixedBalance, getNextLevelInfo } from '../common/UserTierBadge';
 import {
   CreditCard,
   Copy,
@@ -21,7 +21,9 @@ import {
   Star,
   Award,
   Gem,
-  Crown
+  Crown,
+  TrendingUp,
+  Gift
 } from 'lucide-react';
 
 interface Props {
@@ -30,14 +32,22 @@ interface Props {
 
 export const CustomerDeposit: React.FC<Props> = ({ setActiveTab }) => {
   const { paymentMethods, submitDeposit, deposits, currentUser, t, lang, settings, showToast } = useApp();
+  const [depositMode, setDepositMode] = useState<'preset' | 'custom'>('preset');
   const [selectedPackageId, setSelectedPackageId] = useState<string>('pkg_general_500');
+  const [customAmount, setCustomAmount] = useState<string>('500');
   const [selectedMethodCode, setSelectedMethodCode] = useState<PaymentMethodCode>('bkash');
   const [senderPhone, setSenderPhone] = useState<string>(currentUser.phone || '');
   const [trxId, setTrxId] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedPackage: DepositPackage = DEPOSIT_PACKAGES.find(p => p.id === selectedPackageId) || DEPOSIT_PACKAGES[0];
+  const selectedPackage: DepositPackage | undefined = DEPOSIT_PACKAGES.find(p => p.id === selectedPackageId);
+  const depositAmount = depositMode === 'preset' && selectedPackage ? selectedPackage.amount : (parseFloat(customAmount) || 0);
+  const currentFixedBalance = currentUser.depositBalance || 0;
+  const simulatedTotalFixed = currentFixedBalance + depositAmount;
+  const simulatedTier = calculateTierFromFixedBalance(simulatedTotalFixed);
+  const nextLevelInfo = getNextLevelInfo(currentFixedBalance);
+
   const selectedMethod = paymentMethods.find(m => m.code === selectedMethodCode) || paymentMethods[0];
 
   const handleCopyNumber = () => {
@@ -51,8 +61,8 @@ export const CustomerDeposit: React.FC<Props> = ({ setActiveTab }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPackage) {
-      showToast(lang === 'bn' ? 'অনুগ্রহ করে একটি প্যাকেজ সিলেক্ট করুন' : 'Please select a package', 'error');
+    if (depositAmount <= 0 || isNaN(depositAmount)) {
+      showToast(lang === 'bn' ? 'সঠিক ডিপোজিট পরিমাণ লিখুন' : 'Please enter a valid deposit amount', 'error');
       return;
     }
 
@@ -67,13 +77,18 @@ export const CustomerDeposit: React.FC<Props> = ({ setActiveTab }) => {
     }
 
     setIsSubmitting(true);
+    const targetTier = depositMode === 'preset' && selectedPackage ? selectedPackage.tier : simulatedTier;
+    const packageName = depositMode === 'preset' && selectedPackage 
+      ? (lang === 'bn' ? selectedPackage.nameBn : selectedPackage.name)
+      : (lang === 'bn' ? `কাস্টম রিচার্জ (৳${depositAmount})` : `Custom Recharge (৳${depositAmount})`);
+
     const success = submitDeposit(
       selectedMethodCode,
-      selectedPackage.amount,
+      depositAmount,
       senderPhone.trim(),
       trxId.trim(),
-      selectedPackage.tier,
-      lang === 'bn' ? selectedPackage.nameBn : selectedPackage.name
+      targetTier,
+      packageName
     );
     setIsSubmitting(false);
 
@@ -92,22 +107,25 @@ export const CustomerDeposit: React.FC<Props> = ({ setActiveTab }) => {
         <div className="relative z-10 max-w-3xl space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 text-xs font-bold border border-teal-400/30">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{lang === 'bn' ? 'ফিক্সড প্যাকেজ রিচার্জ ও মেম্বারশিপ আপগ্রেড' : 'Fixed Package Recharge & Tier Promotion'}</span>
+            <span>{lang === 'bn' ? 'সংরক্ষিত ফিক্সড ডিপোজিট ও লেভেল আপগ্রেড' : 'Reserved Fixed Deposit & Tier Progression'}</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-            {lang === 'bn' ? 'নির্ধারিত প্যাকেজ সিলেক্ট করে রিচার্জ করুন' : 'Select Fixed Package & Upgrade Your Tier'}
+            {lang === 'bn' ? 'ডিপোজিট করুন ও মেম্বারশিপ লেভেল বৃদ্ধি করুন' : 'Deposit & Unlock Higher Tier Levels'}
           </h2>
 
           <p className="text-xs sm:text-sm text-teal-100/90 leading-relaxed max-w-2xl">
             {lang === 'bn' 
-              ? 'কাস্টম অ্যামাউন্ট প্রযোজ্য নয়। আপনার পছন্দের মেম্বারশিপ প্যাকেজটি সিলেক্ট করে সঠিক ফিক্সড অ্যামাউন্ট সেন্ড মানি করুন। অ্যাডমিন অনুমোদনের সাথে সাথে আপনার একাউন্ট ও মেম্বারশিপ টিয়ার স্বয়ংক্রিয়ভাবে সক্রিয় হবে।' 
-              : 'Custom deposit amounts are not accepted. Please select a fixed package below to upgrade your tier and unlock higher task rewards.'}
+              ? 'যেকোনো পরিমাণ বা প্যাকেজ রিচার্জ করতে পারেন। আপনার জমাকৃত অর্থ সংরক্ষিত ফিক্সড ব্যালেন্সে জমা হবে এবং ৳৫০০, ৳১০০০, ৳৩০০০ ইত্যাদি মাইলস্টোন ছোঁয়ার সাথে সাথে মেম্বারশিপ লেভেল ও টাস্ক রিওয়ার্ড বৃদ্ধি পাবে।' 
+              : 'You can deposit any amount or preset package. Deposits are added directly to your Reserved Fixed Balance to level up your tier and boost task earnings.'}
           </p>
 
-          {/* Current Tier Indicator */}
+          {/* Current Tier & Fixed Balance Indicators */}
           <div className="pt-2 flex flex-wrap items-center gap-3">
-            <span className="text-xs text-slate-300 font-semibold">{lang === 'bn' ? 'আপনার বর্তমান স্ট্যাটাস:' : 'Your Current Status:'}</span>
+            <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700 flex items-center gap-2 text-xs">
+              <span className="text-slate-400 font-semibold">{lang === 'bn' ? 'বর্তমান ফিক্সড ব্যালেন্স:' : 'Current Fixed Balance:'}</span>
+              <span className="font-extrabold text-emerald-400">৳{currentFixedBalance.toLocaleString()}</span>
+            </div>
             <UserTierBadge tier={currentUser.userType || 'General'} size="sm" showPerkText lang={lang} />
           </div>
         </div>
@@ -116,94 +134,221 @@ export const CustomerDeposit: React.FC<Props> = ({ setActiveTab }) => {
         <div className="absolute right-0 top-0 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
       </div>
 
-      {/* Step 1: Fixed Packages Selection Grid */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+      {/* Tiered Level-Up Milestone Roadmap */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-black">1</span>
-              <span>{lang === 'bn' ? 'মেম্বারশিপ প্যাকেজ নির্বাচন করুন (Fixed Amounts)' : 'Select Deposit Package (Fixed Amounts)'}</span>
+            <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-emerald-600" />
+              <span>{lang === 'bn' ? 'টিয়ার লেভেল আপগ্রেড মাইলস্টোন' : 'Tier Level-Up Milestones'}</span>
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {lang === 'bn' ? 'প্রত্যেক প্যাকেজের সাথে রয়েছে বিশেষ রিওয়ার্ড বুস্টার ও দৈনিক টাস্ক লিমিট' : 'Each fixed package provides unique reward boosters and daily limits'}
+            <p className="text-xs text-slate-500">
+              {lang === 'bn' 
+                ? 'ফিক্সড ব্যালেন্স বৃদ্ধি পেলে স্বয়ংক্রিয়ভাবে নতুন লেভেল ও টাস্ক সুবিধা আনলক হবে।' 
+                : 'Accumulate fixed deposit balance to unlock higher tiers with enhanced multipliers.'}
             </p>
           </div>
-          <span className="hidden sm:inline-flex text-xs px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 font-semibold items-center gap-1">
-            <Lock className="w-3 h-3 text-amber-600" />
-            {lang === 'bn' ? 'ফিক্সড রেট' : 'Fixed Amount Only'}
-          </span>
+          {nextLevelInfo.nextTier && (
+            <div className="text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900">
+              {lang === 'bn' 
+                ? `পরবর্তী লেভেল (${nextLevelInfo.nextTier}) এর জন্য প্রয়োজন আরও ৳${nextLevelInfo.neededAmount.toLocaleString()}` 
+                : `Need ৳${nextLevelInfo.neededAmount.toLocaleString()} more for next level (${nextLevelInfo.nextTier})`}
+            </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {DEPOSIT_PACKAGES.map((pkg) => {
-            const isSelected = selectedPackageId === pkg.id;
-            const isCurrentTier = (currentUser.userType || 'General') === pkg.tier;
-
+        {/* Milestone Steps */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
+          {[
+            { level: 'Level 1', name: 'General', amount: 500, mult: '1.0x', desc: 'Active Account' },
+            { level: 'Level 2', name: 'Silver', amount: 1000, mult: '1.2x', desc: '+৳500 more' },
+            { level: 'Level 3', name: 'Gold', amount: 3000, mult: '1.5x', desc: 'Reach ৳3,000' },
+            { level: 'Level 4', name: 'Platinum', amount: 6000, mult: '2.0x', desc: 'Reach ৳6,000' },
+            { level: 'Level 5', name: 'VIP', amount: 10000, mult: '3.0x', desc: 'Reach ৳10,000+' }
+          ].map((m, idx) => {
+            const isReached = currentFixedBalance >= m.amount;
             return (
-              <div
-                key={pkg.id}
-                onClick={() => setSelectedPackageId(pkg.id)}
-                className={`relative rounded-3xl p-5 border-2 cursor-pointer transition-all duration-200 flex flex-col justify-between overflow-hidden ${
-                  isSelected
-                    ? 'border-emerald-500 bg-white ring-4 ring-emerald-500/20 shadow-lg -translate-y-1'
-                    : 'border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-white hover:shadow-xs'
+              <div 
+                key={idx}
+                className={`p-3.5 rounded-2xl border transition-all text-center space-y-1 relative ${
+                  isReached 
+                    ? 'bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-400/20' 
+                    : 'bg-slate-50 border-slate-200 opacity-90'
                 }`}
               >
-                {/* Popular or Current Badge */}
-                {pkg.isPopular && (
-                  <div className="absolute top-0 right-0 bg-gradient-to-l from-amber-500 to-yellow-400 text-amber-950 font-black text-[9px] px-3 py-0.5 rounded-bl-xl tracking-wider uppercase shadow-xs">
-                    ★ Popular
+                {isReached && (
+                  <div className="absolute -top-2 right-2 bg-emerald-600 text-white rounded-full p-0.5">
+                    <Check className="w-3 h-3" />
                   </div>
                 )}
-                {isCurrentTier && (
-                  <div className="absolute top-0 left-0 bg-emerald-600 text-white font-bold text-[9px] px-2.5 py-0.5 rounded-br-xl uppercase">
-                    {lang === 'bn' ? 'বর্তমান' : 'Active'}
-                  </div>
-                )}
-
-                <div>
-                  <div className="mt-1">
-                    <UserTierBadge tier={pkg.tier} size="xs" lang={lang} />
-                  </div>
-
-                  <div className="mt-3">
-                    <div className="text-2xl font-black text-slate-900 tracking-tight">
-                      ৳{pkg.amount.toLocaleString()}
-                    </div>
-                    <span className="text-[11px] font-bold text-emerald-600">
-                      {pkg.rewardMultiplier}x {lang === 'bn' ? 'রিওয়ার্ড রেট' : 'Reward Rate'}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-slate-600 mt-2 leading-relaxed font-medium">
-                    {lang === 'bn' ? pkg.descriptionBn : pkg.description}
-                  </p>
-
-                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5 text-[11px]">
-                    {(lang === 'bn' ? pkg.perksBn : pkg.perks).slice(0, 3).map((perk, i) => (
-                      <div key={i} className="flex items-center gap-1.5 text-slate-700 font-medium">
-                        <Check className="w-3 h-3 text-emerald-600 shrink-0" />
-                        <span className="line-clamp-1">{perk}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-100">
-                  <div
-                    className={`w-full py-2 rounded-xl text-xs font-bold text-center transition-all ${
-                      isSelected
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-slate-200/80 text-slate-700'
-                    }`}
-                  >
-                    {isSelected ? (lang === 'bn' ? '✓ নির্বাচিত প্যাকেজ' : '✓ Selected') : (lang === 'bn' ? 'নির্বাচন করুন' : 'Select Package')}
-                  </div>
-                </div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{m.level}</div>
+                <div className="font-extrabold text-sm text-slate-800">{m.name}</div>
+                <div className="text-xs font-black text-emerald-600">৳{m.amount.toLocaleString()}</div>
+                <div className="text-[10px] font-bold text-indigo-600 bg-indigo-50 py-0.5 px-2 rounded-md inline-block">{m.mult} Reward</div>
               </div>
             );
           })}
         </div>
+      </div>
+
+      {/* Step 1: Preset Packages or Custom Amount Selection */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-black">1</span>
+              <span>{lang === 'bn' ? 'রিচার্জের পরিমাণ নির্বাচন করুন' : 'Choose Deposit Amount'}</span>
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {lang === 'bn' ? 'প্যাকেজ নির্বাচন করতে পারেন অথবা যেকোনো কাস্টম অ্যামাউন্ট ডিপোজিট করতে পারেন' : 'Select a preset package or enter any custom deposit amount'}
+            </p>
+          </div>
+
+          {/* Mode Switcher */}
+          <div className="inline-flex p-1 bg-slate-100 rounded-2xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setDepositMode('preset')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                depositMode === 'preset' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {lang === 'bn' ? 'প্যাকেজ সমূহ' : 'Preset Packages'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDepositMode('custom')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                depositMode === 'custom' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {lang === 'bn' ? 'কাস্টম পরিমাণ' : 'Custom Amount'}
+            </button>
+          </div>
+        </div>
+
+        {depositMode === 'preset' ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {DEPOSIT_PACKAGES.map((pkg) => {
+              const isSelected = selectedPackageId === pkg.id;
+              const isCurrentTier = (currentUser.userType || 'General') === pkg.tier;
+
+              return (
+                <div
+                  key={pkg.id}
+                  onClick={() => setSelectedPackageId(pkg.id)}
+                  className={`relative rounded-3xl p-5 border-2 cursor-pointer transition-all duration-200 flex flex-col justify-between overflow-hidden ${
+                    isSelected
+                      ? 'border-emerald-500 bg-white ring-4 ring-emerald-500/20 shadow-lg -translate-y-1'
+                      : 'border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-white hover:shadow-xs'
+                  }`}
+                >
+                  {pkg.isPopular && (
+                    <div className="absolute top-0 right-0 bg-gradient-to-l from-amber-500 to-yellow-400 text-amber-950 font-black text-[9px] px-3 py-0.5 rounded-bl-xl tracking-wider uppercase shadow-xs">
+                      ★ Popular
+                    </div>
+                  )}
+                  {isCurrentTier && (
+                    <div className="absolute top-0 left-0 bg-emerald-600 text-white font-bold text-[9px] px-2.5 py-0.5 rounded-br-xl uppercase">
+                      {lang === 'bn' ? 'বর্তমান' : 'Active'}
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="mt-1">
+                      <UserTierBadge tier={pkg.tier} size="xs" lang={lang} />
+                    </div>
+
+                    <div className="mt-3">
+                      <div className="text-2xl font-black text-slate-900 tracking-tight">
+                        ৳{pkg.amount.toLocaleString()}
+                      </div>
+                      <span className="text-[11px] font-bold text-emerald-600">
+                        {pkg.rewardMultiplier}x {lang === 'bn' ? 'রিওয়ার্ড রেট' : 'Reward Rate'}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 mt-2 leading-relaxed font-medium">
+                      {lang === 'bn' ? pkg.descriptionBn : pkg.description}
+                    </p>
+
+                    <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5 text-[11px]">
+                      {(lang === 'bn' ? pkg.perksBn : pkg.perks).slice(0, 3).map((perk, i) => (
+                        <div key={i} className="flex items-center gap-1.5 text-slate-700 font-medium">
+                          <Check className="w-3 h-3 text-emerald-600 shrink-0" />
+                          <span className="line-clamp-1">{perk}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-100">
+                    <div
+                      className={`w-full py-2 rounded-xl text-xs font-bold text-center transition-all ${
+                        isSelected
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-slate-200/80 text-slate-700'
+                      }`}
+                    >
+                      {isSelected ? (lang === 'bn' ? '✓ নির্বাচিত প্যাকেজ' : '✓ Selected') : (lang === 'bn' ? 'নির্বাচন করুন' : 'Select Package')}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4 max-w-xl">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+                {lang === 'bn' ? 'আপনার কাঙ্ক্ষিত রিচার্জের পরিমাণ (৳)' : 'Enter Custom Deposit Amount (৳)'}
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xl">৳</span>
+                <input
+                  type="number"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  placeholder="500"
+                  min={100}
+                  className="w-full pl-10 pr-4 py-3.5 rounded-2xl border-2 border-emerald-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 font-black text-xl text-slate-900 outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Quick suggestions */}
+            <div className="flex flex-wrap gap-2">
+              {['300', '500', '1000', '2000', '3000', '5000'].map((amt) => (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => setCustomAmount(amt)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                    customAmount === amt 
+                      ? 'bg-emerald-600 text-white border-emerald-600' 
+                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  +৳{amt}
+                </button>
+              ))}
+            </div>
+
+            {/* Projected Tier Preview */}
+            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs space-y-1 text-emerald-950">
+              <div className="font-bold flex items-center gap-1.5 text-emerald-900">
+                <Sparkles className="w-4 h-4 text-emerald-600" />
+                <span>{lang === 'bn' ? 'প্রত্যাশিত মেম্বারশিপ লেভেল হিসাব:' : 'Projected Level Calculation:'}</span>
+              </div>
+              <p>
+                {lang === 'bn' 
+                  ? `বর্তমান ব্যালেন্স ৳${currentFixedBalance} + নতুন জমা ৳${depositAmount} = মোট ফিক্সড ব্যালেন্স হবে ৳${simulatedTotalFixed.toLocaleString()}। আপনার টিয়ার উন্নীত হবে: `
+                  : `Current ৳${currentFixedBalance} + New ৳${depositAmount} = Total Fixed Balance ৳${simulatedTotalFixed.toLocaleString()}. Tier Level: `}
+                <strong className="text-emerald-700 font-black">Level ({simulatedTier})</strong>
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Step 2: Payment Method & Deposit Submission Grid */}
@@ -299,9 +444,9 @@ export const CustomerDeposit: React.FC<Props> = ({ setActiveTab }) => {
                 <span>{t.sendMoneyInstructions}</span>
               </h4>
               <p className="leading-relaxed font-medium">১. আপনার {selectedMethod?.name} একাউন্ট থেকে <strong>Send Money</strong> করুন।</p>
-              <p className="leading-relaxed font-medium">২. প্রেরণের পরিমাণ ফিক্সড প্যাকেজ অনুযায়ী ঠিক <strong>৳{selectedPackage?.amount}</strong> টাকা হতে হবে।</p>
+              <p className="leading-relaxed font-medium">২. প্রেরণের পরিমাণ ঠিক <strong>৳{depositAmount}</strong> টাকা হতে হবে।</p>
               <p className="leading-relaxed font-medium">৩. সফল সেন্ড মানির পর ট্রানজেকশন আইডি (TrxID) কপি করুন।</p>
-              <p className="leading-relaxed text-emerald-700 font-bold">৪. নিচের ফর্মে তথ্য জমা দিলে অ্যাডমিন ভেরিফাই করে আপনার মেম্বারশিপ সক্রিয় করবে।</p>
+              <p className="leading-relaxed text-emerald-700 font-bold">৪. ডিপোজিট অনুমোদিত হলে তা সরাসরি আপনার সংরক্ষিত ফিক্সড ব্যালেন্সে জমা হয়ে লেভেল বৃদ্ধি করবে।</p>
             </div>
           </div>
         </div>
@@ -314,26 +459,28 @@ export const CustomerDeposit: React.FC<Props> = ({ setActiveTab }) => {
                 <span className="flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-white text-[10px] font-black">3</span>
                 <span>{lang === 'bn' ? 'রিচার্জ তথ্য জমা দিন' : 'Submit Deposit Details'}</span>
               </h3>
-              <UserTierBadge tier={selectedPackage?.tier} size="sm" lang={lang} />
+              <UserTierBadge tier={simulatedTier} size="sm" lang={lang} />
             </div>
 
             {/* Selected Package Confirmation Box */}
             <div className="bg-gradient-to-r from-slate-900 to-teal-950 text-white p-4 rounded-2xl flex items-center justify-between border border-teal-900">
               <div>
                 <span className="text-[11px] text-teal-300 font-bold uppercase tracking-wider block">
-                  {lang === 'bn' ? 'নির্বাচিত প্যাকেজের নির্ধারিত পরিমাণ' : 'Fixed Package Amount'}
+                  {lang === 'bn' ? 'জমা দেওয়ার নির্ধারিত পরিমাণ' : 'Deposit Amount'}
                 </span>
                 <span className="text-sm font-bold text-slate-200">
-                  {lang === 'bn' ? selectedPackage?.nameBn : selectedPackage?.name}
+                  {depositMode === 'preset' && selectedPackage 
+                    ? (lang === 'bn' ? selectedPackage.nameBn : selectedPackage.name)
+                    : (lang === 'bn' ? 'কাস্টম রিচার্জ' : 'Custom Recharge')}
                 </span>
               </div>
 
               <div className="text-right">
                 <span className="text-2xl font-black text-emerald-400 font-mono">
-                  ৳{selectedPackage?.amount.toLocaleString()}
+                  ৳{depositAmount.toLocaleString()}
                 </span>
                 <span className="text-[10px] text-slate-400 block font-semibold">
-                  (Fixed Package)
+                  (Reserved Fixed Deposit)
                 </span>
               </div>
             </div>
@@ -378,22 +525,22 @@ export const CustomerDeposit: React.FC<Props> = ({ setActiveTab }) => {
             <div className="bg-emerald-50/90 border border-emerald-200 p-4 rounded-2xl text-xs text-emerald-950 space-y-1.5">
               <div className="font-bold flex items-center gap-1.5 text-emerald-900">
                 <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                <span>{lang === 'bn' ? 'মেম্বারশিপ সুবিধা ও প্রমোশন গ্যারান্টি:' : 'Tier Promotion Benefits:'}</span>
+                <span>{lang === 'bn' ? 'লেভেল সুবিধা ও সংরক্ষিত ব্যালেন্স পলিসি:' : 'Level Progression Policy:'}</span>
               </div>
               <p className="leading-relaxed font-medium">
                 {lang === 'bn'
-                  ? `এই ৳${selectedPackage?.amount} রিচার্জ অনুমোদিত হলে আপনি সরাসরি ${selectedPackage?.nameBn} টিয়ারে উন্নীত হবেন এবং প্রতি টাস্কে ${selectedPackage?.rewardMultiplier}x হারে রিওয়ার্ড পাবেন।`
-                  : `Upon approval of this ৳${selectedPackage?.amount} recharge, your tier will be upgraded to ${selectedPackage?.tier} with a ${selectedPackage?.rewardMultiplier}x reward rate.`}
+                  ? `এই ৳${depositAmount} অনুমোদিত হলে আপনার ফিক্সড ব্যালেন্স হবে ৳${simulatedTotalFixed.toLocaleString()} এবং আপনি ${simulatedTier} লেভেলের বর্ধিত রিওয়ার্ড বুস্টার উপভোগ করবেন।`
+                  : `Upon approval of this ৳${depositAmount} deposit, your total fixed balance will be ৳${simulatedTotalFixed.toLocaleString()} and your membership tier will be ${simulatedTier}.`}
               </p>
             </div>
 
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || depositAmount <= 0}
               className="w-full py-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-sm rounded-xl shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <span>{isSubmitting ? t.loading : (lang === 'bn' ? `৳${selectedPackage?.amount} রিচার্জ রিকোয়েস্ট পাঠান` : `Submit ৳${selectedPackage?.amount} Deposit Request`)}</span>
+              <span>{isSubmitting ? t.loading : (lang === 'bn' ? `৳${depositAmount} রিচার্জ রিকোয়েস্ট পাঠান` : `Submit ৳${depositAmount} Deposit Request`)}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>

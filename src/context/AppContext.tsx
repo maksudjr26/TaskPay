@@ -31,6 +31,7 @@ import {
   initialNotifications
 } from '../utils/mockData';
 import { translations } from '../utils/translations';
+import { calculateTierFromFixedBalance } from '../components/common/UserTierBadge';
 
 interface Toast {
   id: string;
@@ -114,8 +115,29 @@ interface AppContextType {
   toggleAnnouncement: (id: string) => void;
 
   // Admin Controls
+  addUserByAdmin: (userData: {
+    name: string;
+    phone: string;
+    password?: string;
+    email?: string;
+    username?: string;
+    zone?: ZoneType | string;
+    userType?: UserTier;
+    status?: AccountStatus;
+    depositBalance?: number;
+    taskBalance?: number;
+    referredBy?: string;
+    referralCode?: string;
+    notes?: string;
+  }) => { success: boolean; message: string; user?: User };
   toggleUserStatus: (userId: string) => void;
+  blockUser: (userId: string, reason?: string) => void;
+  unblockUser: (userId: string) => void;
+  setUserStatus: (userId: string, status: AccountStatus, reason?: string) => void;
   adjustUserBalance: (userId: string, amount: number, type: 'add' | 'deduct', balanceType: 'task' | 'deposit' | 'total', reason: string) => void;
+  updateUserByAdmin: (userId: string, updates: Partial<User>) => void;
+  changeUserTier: (userId: string, tier: UserTier) => void;
+  deleteUser: (userId: string) => boolean;
   updatePaymentMethod: (id: string, updates: Partial<PaymentMethodConfig>) => void;
   updateSystemSettings: (newSettings: Partial<SystemSettings>) => void;
   
@@ -578,6 +600,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return true;
       }
 
+      if (found.status === 'blocked' && found.role !== 'admin') {
+        showToast(
+          lang === 'bn' 
+            ? 'আপনার অ্যাকাউন্টটি অ্যাডমিন কর্তৃক সাময়িকভাবে ব্লক (Blocked) করা হয়েছে। সহায়তার জন্য সাপোর্টে যোগাযোগ করুন।' 
+            : 'Your account is currently blocked by administrator. Please contact support.', 
+          'error'
+        );
+        return false;
+      }
+
       if (found.password && found.password !== cleanPass && found.password !== pass) {
         showToast(lang === 'bn' ? 'পাসওয়ার্ড সঠিক নয়' : 'Incorrect password', 'error');
         return false;
@@ -753,6 +785,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const deposit = deposits.find(d => d.id === depositId);
     if (!deposit || deposit.status !== 'pending') return;
 
+    const targetUser = users.find(u => u.id === deposit.userId);
+    const isFirstDeposit = !targetUser?.firstDepositApproved && (targetUser?.totalDeposited || 0) === 0;
+
     // 1. Update deposit status
     setDeposits(prev => prev.map(d => d.id === depositId ? {
       ...d,
@@ -762,31 +797,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       notes: adminNotes
     } : d));
 
-    // 2. Update user deposit balance, total balance & tier promotion
+    // 2. Identify referrer for 5% commission on first deposit (credited as Fixed Balance)
+    let referrerBonusAmount = 0;
+    let referrerUserId = '';
+    let referrerName = '';
+
+    if (isFirstDeposit && targetUser?.referredBy) {
+      const refQuery = targetUser.referredBy.trim().toLowerCase();
+      const cleanRefPhone = refQuery.replace(/[^0-9]/g, '');
+      const refUser = users.find(u => 
+        u.id.toLowerCase() === refQuery ||
+        (u.referralCode && u.referralCode.toLowerCase() === refQuery) ||
+        (cleanRefPhone.length >= 8 && u.phone.replace(/[^0-9]/g, '').includes(cleanRefPhone)) ||
+        (u.name && u.name.toLowerCase() === refQuery)
+      );
+
+      if (refUser && refUser.id !== targetUser.id) {
+        referrerBonusAmount = Math.round(deposit.amount * (settings.referralBonusPercent || 5) / 100);
+        referrerUserId = refUser.id;
+        referrerName = refUser.name;
+      }
+    }
+
+    // 3. Update user balances and levels
     setUsers(prev => prev.map(u => {
+      // For Depositing User:
       if (u.id === deposit.userId) {
         const newDeposited = (u.totalDeposited || 0) + deposit.amount;
-        const currentDepositBalance = (u.depositBalance ?? (u.totalDeposited || 0)) + deposit.amount;
-        const currentTaskBalance = u.taskBalance ?? (u.totalEarned || 0);
+        const currentDepositBalance = (u.depositBalance ?? 0) + deposit.amount;
+        const currentTaskBalance = u.taskBalance ?? 0;
         const newTotalBalance = currentDepositBalance + currentTaskBalance;
         
-        let upgradedTier: UserTier = u.userType || 'General';
-
-        if (deposit.packageTier) {
-          upgradedTier = deposit.packageTier;
-        } else if (deposit.amount >= 10000 || newDeposited >= 10000) {
-          upgradedTier = 'VIP';
-        } else if (deposit.amount >= 5000 || newDeposited >= 5000) {
-          upgradedTier = 'Platinum';
-        } else if (deposit.amount >= 3000 || newDeposited >= 3000) {
-          upgradedTier = 'Gold';
-        } else if (deposit.amount >= 1000 || newDeposited >= 1500) {
-          upgradedTier = 'Silver';
-        } else if (newDeposited >= 500) {
-          upgradedTier = 'General';
-        }
-
-        const shouldActivate = u.status === 'inactive' && newDeposited >= settings.minActivationAmount;
+        // Cumulative Milestone Level calculation
+        const upgradedTier = calculateTierFromFixedBalance(currentDepositBalance);
+        const shouldActivate = u.status === 'inactive' && currentDepositBalance >= (settings.minActivationAmount || 500);
 
         return {
           ...u,
@@ -795,43 +839,117 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           balance: newTotalBalance,
           totalDeposited: newDeposited,
           userType: upgradedTier,
+          firstDepositApproved: true,
           status: shouldActivate ? 'active' : u.status
         };
       }
+
+      // For Referrer:
+      if (referrerUserId && u.id === referrerUserId && referrerBonusAmount > 0) {
+        const newDepBal = (u.depositBalance || 0) + referrerBonusAmount;
+        const newTotalDep = (u.totalDeposited || 0) + referrerBonusAmount;
+        const currentTaskBal = u.taskBalance || 0;
+        const newTotBal = newDepBal + currentTaskBal;
+        const upgradedTier = calculateTierFromFixedBalance(newDepBal);
+
+        return {
+          ...u,
+          depositBalance: newDepBal,
+          totalDeposited: newTotalDep,
+          balance: newTotBal,
+          referralCount: (u.referralCount || 0) + 1,
+          referralBonusEarned: (u.referralBonusEarned || 0) + referrerBonusAmount,
+          userType: upgradedTier
+        };
+      }
+
       return u;
     }));
 
-    // 3. Update transaction record
-    setTransactions(prev => prev.map(t => {
-      if (t.referenceId === deposit.transactionId) {
-        return { ...t, status: 'completed' };
-      }
-      return t;
-    }));
+    // 4. Update transaction records for the deposit & referral
+    setTransactions(prev => {
+      let updated = prev.map(t => {
+        if (t.referenceId === deposit.transactionId) {
+          return { ...t, status: 'completed' as const };
+        }
+        return t;
+      });
 
-    // 4. Send Customer Success Notification
+      if (referrerUserId && referrerBonusAmount > 0) {
+        const refTrx: TransactionRecord = {
+          id: 'trx_ref_' + Date.now(),
+          userId: referrerUserId,
+          type: 'referral_bonus',
+          amount: referrerBonusAmount,
+          title: `5% Referral Bonus (${deposit.userName})`,
+          titleBn: `৫% রেফারেল বোনাস (${deposit.userName}-এর ১ম ডিপোজিট)`,
+          description: `5% referral bonus from ${deposit.userName}'s first deposit of ৳${deposit.amount}, added directly to Fixed Deposit.`,
+          status: 'completed',
+          date: new Date().toLocaleString(),
+          referenceId: deposit.transactionId
+        };
+        updated = [refTrx, ...updated];
+      }
+
+      return updated;
+    });
+
+    // 5. Send Deposit Approved Notification to Depositing User
+    const newFixedBal = ((targetUser?.depositBalance || 0) + deposit.amount);
+    const newTier = calculateTierFromFixedBalance(newFixedBal);
+
     addNotification({
       target: 'customer',
       userId: deposit.userId,
       category: 'deposit',
       type: 'success',
-      title: 'Deposit Approved & Added!',
-      titleBn: 'ডিপোজিট সফলভাবে অনুমোদিত হয়েছে!',
-      message: `৳${deposit.amount} has been approved and added to your Deposit Balance.${deposit.packageTier ? ` Tier promoted to ${deposit.packageTier}!` : ''}`,
-      messageBn: `৳${deposit.amount} সফলভাবে অনুমোদিত হয়ে আপনার ডিপোজিট ব্যালেন্সে জমা হয়েছে!${deposit.packageTier ? ` আপনার টিয়ার এখন ${deposit.packageTier}!` : ''}`,
+      title: 'Deposit Approved & Added to Fixed Balance!',
+      titleBn: 'ডিপোজিট সফলভাবে অনুমোদিত ও ফিক্সড ব্যালেন্সে জমা হয়েছে!',
+      message: `৳${deposit.amount} has been approved and added to your Reserved Fixed Deposit Balance. Current Level: ${newTier}.`,
+      messageBn: `৳${deposit.amount} অনুমোদিত হয়ে আপনার সংরক্ষিত ফিক্সড ডিপোজিট ব্যালেন্সে যোগ হয়েছে! বর্তমান লেভেল: ${newTier}।`,
       actionTab: 'deposit',
       amount: deposit.amount,
       referenceId: deposit.transactionId
     });
 
-    // 5. Send Admin Notification
+    if (targetUser && targetUser.userType !== newTier) {
+      addNotification({
+        target: 'customer',
+        userId: deposit.userId,
+        category: 'level_up',
+        type: 'success',
+        title: `🏆 Level Up: ${newTier}!`,
+        titleBn: `🏆 মেম্বারশিপ লেভেল আপগ্রেড: ${newTier}!`,
+        message: `Congratulations! Your Fixed Balance reached ৳${newFixedBal}. You are now promoted to Level (${newTier}) with higher multipliers & daily task limits!`,
+        messageBn: `অভিনন্দন! আপনার ফিক্সড ডিপোজিট ব্যালেন্স ৳${newFixedBal} পূর্ণ হওয়ায় আপনি ${newTier} লেভেলে উন্নীত হয়েছেন। বাড়তি রিওয়ার্ড বুস্টার সক্রিয় হয়েছে!`,
+        actionTab: 'deposit'
+      });
+    }
+
+    // 6. Send Referral Bonus Notification to Referrer
+    if (referrerUserId && referrerBonusAmount > 0) {
+      addNotification({
+        target: 'customer',
+        userId: referrerUserId,
+        category: 'referral',
+        type: 'success',
+        title: '🎉 5% Referral Bonus Credited!',
+        titleBn: '🎉 ৫% রেফারেল বোনাস ফিক্সড ব্যালেন্সে জমা হয়েছে!',
+        message: `You earned ৳${referrerBonusAmount} (5%) from ${deposit.userName}'s first deposit of ৳${deposit.amount}. Added directly to your Fixed Balance!`,
+        messageBn: `আপনার রেফারেল ${deposit.userName}-এর প্রথম ডিপোজিট ৳${deposit.amount} থেকে ৫% বোনাস (৳${referrerBonusAmount}) সরাসরি আপনার ফিক্সড ডিপোজিট ব্যালেন্সে যোগ হয়েছে!`,
+        actionTab: 'referrals',
+        amount: referrerBonusAmount
+      });
+    }
+
+    // 7. Send Admin Notification
     addNotification({
       target: 'admin',
       category: 'deposit',
       type: 'success',
       title: 'Deposit Approved',
       titleBn: 'ডিপোজিট অনুমোদন সম্পন্ন',
-      message: `Approved ৳${deposit.amount} for ${deposit.userName} (${deposit.userPhone}). TrxID: ${deposit.transactionId}`,
+      message: `Approved ৳${deposit.amount} for ${deposit.userName} (${deposit.userPhone}). TrxID: ${deposit.transactionId}${referrerBonusAmount > 0 ? ` (৳${referrerBonusAmount} 5% bonus awarded to ${referrerName})` : ''}`,
       messageBn: `${deposit.userName} (${deposit.userPhone})-এর ৳${deposit.amount} ডিপোজিট সফলভাবে অনুমোদিত হয়েছে।`,
       actionTab: 'admin_deposits',
       amount: deposit.amount,
@@ -840,8 +958,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     showToast(
       lang === 'bn' 
-        ? `৳${deposit.amount} ডিপোজিট অনুমোদিত হয়েছে এবং ডিপোজিট ব্যালেন্সে যোগ হয়েছে!` 
-        : `Deposit of ৳${deposit.amount} approved and credited to Deposit Balance!`, 
+        ? `৳${deposit.amount} ডিপোজিট অনুমোদিত হয়ে ফিক্সড ব্যালেন্সে যোগ হয়েছে!` 
+        : `Deposit of ৳${deposit.amount} approved and credited to Fixed Balance!`, 
       'success'
     );
     triggerConfetti();
@@ -903,30 +1021,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const submitWithdrawal = (
     methodCode: PaymentMethodConfig['code'],
     amount: number,
-    recipientNumber: string,
-    source: 'taskBalance' | 'depositBalance' | 'any' = 'any'
+    recipientNumber: string
   ) => {
-    const totalAvail = (currentUser.depositBalance || 0) + (currentUser.taskBalance || 0);
+    const taskBal = currentUser.taskBalance || 0;
 
-    if (totalAvail < amount) {
-      showToast(t.insufficientBalance, 'error');
-      return { success: false, message: t.insufficientBalance };
-    }
-
-    if (source === 'taskBalance' && (currentUser.taskBalance || 0) < amount) {
-      const msg = lang === 'bn' ? 'টাস্ক আর্নিং ব্যালেন্সে পর্যাপ্ত টাকা নেই' : 'Insufficient Task Earning Balance';
+    if (amount <= 0 || isNaN(amount)) {
+      const msg = lang === 'bn' ? 'সঠিক উত্তোলনের পরিমাণ লিখুন' : 'Please enter a valid withdrawal amount';
       showToast(msg, 'error');
       return { success: false, message: msg };
     }
 
-    if (source === 'depositBalance' && (currentUser.depositBalance || 0) < amount) {
-      const msg = lang === 'bn' ? 'ডিপোজিট ব্যালেন্সে পর্যাপ্ত টাকা নেই' : 'Insufficient Deposit Balance';
+    if (taskBal < amount) {
+      const msg = lang === 'bn' 
+        ? `উত্তোলনের জন্য পর্যাপ্ত টাস্ক আর্নিং ব্যালেন্স নেই (উপলব্ধ আর্নিং: ৳${taskBal.toLocaleString()})। আপনার ফিক্সড ডিপোজিট ব্যালেন্স (৳${(currentUser.depositBalance || 0).toLocaleString()}) সংরক্ষিত এবং উত্তোলনযোগ্য নয়।`
+        : `Insufficient task earning balance (Available Earning: ৳${taskBal.toLocaleString()}). Your fixed deposit balance (৳${(currentUser.depositBalance || 0).toLocaleString()}) is reserved and cannot be withdrawn.`;
       showToast(msg, 'error');
       return { success: false, message: msg };
     }
 
     if (amount < settings.minWithdrawAmount) {
-      const msg = lang === 'bn' ? `সর্বনিম্ন উত্তোলন ৳${settings.minWithdrawAmount}` : `Minimum withdrawal is ৳${settings.minWithdrawAmount}`;
+      const msg = lang === 'bn' ? `সর্বনিম্ন উত্তোলন লিমিট ৳${settings.minWithdrawAmount}` : `Minimum withdrawal limit is ৳${settings.minWithdrawAmount}`;
+      showToast(msg, 'error');
+      return { success: false, message: msg };
+    }
+
+    if (settings.maxWithdrawAmount && amount > settings.maxWithdrawAmount) {
+      const msg = lang === 'bn' ? `সর্বোচ্চ একক উত্তোলন লিমিট ৳${settings.maxWithdrawAmount}` : `Maximum single withdrawal limit is ৳${settings.maxWithdrawAmount}`;
       showToast(msg, 'error');
       return { success: false, message: msg };
     }
@@ -936,32 +1056,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: t.inactiveWithdrawWarning };
     }
 
-    // Deduct user balance safely based on source
+    // Deduct user balance strictly from taskBalance (Earning Balance)
     setUsers(prev => prev.map(u => {
       if (u.id === currentUser.id) {
-        let newDepBal = u.depositBalance || 0;
-        let newTaskBal = u.taskBalance || 0;
-
-        if (source === 'taskBalance') {
-          newTaskBal -= amount;
-        } else if (source === 'depositBalance') {
-          newDepBal -= amount;
-        } else {
-          // Deduct from taskBalance first, remainder from depositBalance
-          if (newTaskBal >= amount) {
-            newTaskBal -= amount;
-          } else {
-            const remainder = amount - newTaskBal;
-            newTaskBal = 0;
-            newDepBal = Math.max(0, newDepBal - remainder);
-          }
-        }
-
+        const newTaskBal = (u.taskBalance || 0) - amount;
+        const depBal = u.depositBalance || 0;
         return {
           ...u,
-          depositBalance: newDepBal,
           taskBalance: newTaskBal,
-          balance: newDepBal + newTaskBal
+          balance: depBal + newTaskBal
         };
       }
       return u;
@@ -984,8 +1087,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       userId: currentUser.id,
       type: 'withdrawal',
       amount,
-      title: `${methodCode.toUpperCase()} Cashout Request (${source})`,
-      titleBn: `${methodCode.toUpperCase()} উইথড্র আবেদন`,
+      title: `${methodCode.toUpperCase()} Cashout Request (Earning Balance)`,
+      titleBn: `${methodCode.toUpperCase()} ক্যাশআউট আবেদন (আর্নিং ব্যালেন্স)`,
       status: 'pending',
       date: new Date().toLocaleString(),
       referenceId: newWithdraw.id,
@@ -1002,8 +1105,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'warning',
       title: 'New Withdrawal Request',
       titleBn: 'নতুন ক্যাশআউট/উইথড্রল রিকোয়েস্ট',
-      message: `৳${amount} to ${recipientNumber} via ${methodCode.toUpperCase()} by ${currentUser.name} (${currentUser.phone}). Source: ${source}`,
-      messageBn: `${currentUser.name} (${currentUser.phone}) ৳${amount} উত্তোলন আবেদন করেছেন। মেথড: ${methodCode.toUpperCase()}, নম্বর: ${recipientNumber}`,
+      message: `৳${amount} from Earning Balance to ${recipientNumber} via ${methodCode.toUpperCase()} by ${currentUser.name} (${currentUser.phone}).`,
+      messageBn: `${currentUser.name} (${currentUser.phone}) আর্নিং ব্যালেন্স থেকে ৳${amount} উত্তোলন আবেদন করেছেন। মেথড: ${methodCode.toUpperCase()}, নম্বর: ${recipientNumber}`,
       actionTab: 'admin_withdrawals',
       amount,
       referenceId: newWithdraw.id
@@ -1017,8 +1120,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'info',
       title: 'Withdrawal Submitted',
       titleBn: 'উইথড্র আবেদন পর্যালোচনাধীন',
-      message: `Your withdrawal request of ৳${amount} to ${recipientNumber} (${methodCode.toUpperCase()}) is being processed.`,
-      messageBn: `আপনার ${recipientNumber} নম্বরে ৳${amount} উত্তোলন আবেদনটি (${methodCode.toUpperCase()}) পর্যালোচনায় রয়েছে।`,
+      message: `Your withdrawal request of ৳${amount} from Earning Balance to ${recipientNumber} (${methodCode.toUpperCase()}) is being processed.`,
+      messageBn: `আপনার আর্নিং ব্যালেন্স থেকে ${recipientNumber} নম্বরে ৳${amount} উত্তোলন আবেদনটি (${methodCode.toUpperCase()}) পর্যালোচনায় রয়েছে।`,
       actionTab: 'history',
       amount,
       referenceId: newWithdraw.id
@@ -1360,15 +1463,155 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Admin Operations
   // ==========================================
 
+  const addUserByAdmin = (userData: {
+    name: string;
+    phone: string;
+    password?: string;
+    email?: string;
+    username?: string;
+    zone?: ZoneType | string;
+    userType?: UserTier;
+    status?: AccountStatus;
+    depositBalance?: number;
+    taskBalance?: number;
+    referredBy?: string;
+    referralCode?: string;
+    notes?: string;
+  }) => {
+    const cleanPhone = (userData.phone || '').trim();
+    if (!cleanPhone || !userData.name?.trim()) {
+      showToast(lang === 'bn' ? 'নাম ও মোবাইল নম্বর আবশ্যক' : 'Name and phone are required', 'error');
+      return { success: false, message: 'Name and phone are required' };
+    }
+
+    // Check if phone already registered
+    const existing = users.find(u => u.phone?.replace(/[^0-9]/g, '') === cleanPhone.replace(/[^0-9]/g, ''));
+    if (existing) {
+      showToast(lang === 'bn' ? 'এই নম্বরে ইতিমধ্যে একটি একাউন্ট রয়েছে' : 'Phone number is already registered', 'error');
+      return { success: false, message: 'Phone already exists' };
+    }
+
+    const depBal = Number(userData.depositBalance) || 0;
+    const taskBal = Number(userData.taskBalance) || 0;
+    const totalBal = depBal + taskBal;
+    const calculatedTier = userData.userType || calculateTierFromFixedBalance(depBal);
+
+    const newUser: User = {
+      id: 'usr_' + Date.now(),
+      name: userData.name.trim(),
+      phone: cleanPhone,
+      password: userData.password?.trim() || '123456',
+      email: userData.email?.trim() || `${cleanPhone}@taskpay.com`,
+      username: userData.username?.trim() || `user_${cleanPhone.slice(-4)}`,
+      zone: userData.zone || 'Dhaka',
+      role: 'customer',
+      status: userData.status || 'active',
+      userType: calculatedTier,
+      depositBalance: depBal,
+      taskBalance: taskBal,
+      balance: totalBal,
+      totalEarned: taskBal,
+      totalDeposited: depBal,
+      totalWithdrawn: 0,
+      tasksCompletedCount: 0,
+      joinedDate: new Date().toLocaleDateString('en-GB'),
+      referralCode: userData.referralCode?.trim() || ('TP' + Math.random().toString(36).substring(2, 7).toUpperCase()),
+      referredBy: userData.referredBy?.trim() || undefined,
+      notes: userData.notes?.trim() || 'Created by Admin',
+      firstDepositApproved: depBal > 0
+    };
+
+    setUsers(prev => [newUser, ...prev]);
+
+    // If initial balances are granted, create ledger transaction
+    if (depBal > 0 || taskBal > 0) {
+      const initTrx: TransactionRecord = {
+        id: 'trx_' + Date.now(),
+        userId: newUser.id,
+        type: 'admin_adjustment',
+        amount: totalBal,
+        title: `Account Creation Initial Balance (Fixed: ৳${depBal}, Earning: ৳${taskBal})`,
+        titleBn: `অ্যাকাউন্ট খোলার প্রারম্ভিক ব্যালেন্স (ফিক্সড: ৳${depBal}, আর্নিং: ৳${taskBal})`,
+        status: 'completed',
+        date: new Date().toLocaleString()
+      };
+      setTransactions(prev => [initTrx, ...prev]);
+    }
+
+    showToast(lang === 'bn' ? `নতুন ব্যবহারকারী "${newUser.name}" সফলভাবে যুক্ত হয়েছে` : `User "${newUser.name}" added successfully`, 'success');
+    return { success: true, message: 'User added successfully', user: newUser };
+  };
+
   const toggleUserStatus = (userId: string) => {
     setUsers(prev => prev.map(u => {
       if (u.id === userId) {
-        const nextStatus: AccountStatus = u.status === 'active' ? 'inactive' : 'active';
+        let nextStatus: AccountStatus = 'active';
+        if (u.status === 'active') nextStatus = 'inactive';
+        else if (u.status === 'inactive') nextStatus = 'active';
+        else if (u.status === 'blocked') nextStatus = 'active';
         return { ...u, status: nextStatus };
       }
       return u;
     }));
     showToast(lang === 'bn' ? 'ব্যবহারকারীর স্ট্যাটাস পরিবর্তিত হয়েছে' : 'User status updated', 'info');
+  };
+
+  const blockUser = (userId: string, reason?: string) => {
+    const target = users.find(u => u.id === userId);
+    if (!target) return;
+    if (target.role === 'admin' || target.id === 'usr_admin') {
+      showToast(lang === 'bn' ? 'অ্যাডমিন অ্যাকাউন্ট ব্লক করা সম্ভব নয়' : 'Cannot block administrator account', 'error');
+      return;
+    }
+
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        const updatedNotes = reason ? `${u.notes ? u.notes + '\n' : ''}[Blocked]: ${reason}` : u.notes;
+        return { ...u, status: 'blocked', notes: updatedNotes };
+      }
+      return u;
+    }));
+
+    if (currentCustomerId === userId) {
+      setCurrentCustomerId(null);
+      localStorage.removeItem('taskpay_customer_id_v4');
+    }
+
+    showToast(lang === 'bn' ? `ব্যবহারকারী "${target.name}" কে ব্লক করা হয়েছে` : `User "${target.name}" has been blocked`, 'error');
+  };
+
+  const unblockUser = (userId: string) => {
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        return { ...u, status: 'active' };
+      }
+      return u;
+    }));
+    showToast(lang === 'bn' ? 'ব্যবহারকারীকে আনব্লক (সক্রিয়) করা হয়েছে' : 'User unblocked and activated', 'success');
+  };
+
+  const setUserStatus = (userId: string, status: AccountStatus, reason?: string) => {
+    const target = users.find(u => u.id === userId);
+    if (!target) return;
+    if (status === 'blocked' && (target.role === 'admin' || target.id === 'usr_admin')) {
+      showToast(lang === 'bn' ? 'অ্যাডমিন অ্যাকাউন্ট ব্লক করা সম্ভব নয়' : 'Cannot block administrator account', 'error');
+      return;
+    }
+
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        const updatedNotes = reason ? `${u.notes ? u.notes + '\n' : ''}[Status ${status}]: ${reason}` : u.notes;
+        return { ...u, status, notes: updatedNotes };
+      }
+      return u;
+    }));
+
+    if (status === 'blocked' && currentCustomerId === userId) {
+      setCurrentCustomerId(null);
+      localStorage.removeItem('taskpay_customer_id_v4');
+    }
+
+    showToast(lang === 'bn' ? `স্ট্যাটাস পরিবর্তিত হয়েছে: ${status}` : `User status set to ${status}`, 'info');
   };
 
   const adjustUserBalance = (
@@ -1378,10 +1621,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     balanceType: 'task' | 'deposit' | 'total',
     reason: string
   ) => {
+    let oldTier: UserTier = 'General';
+    let newTier: UserTier = 'General';
+    let isTierChanged = false;
+    let finalDepBal = 0;
+
     setUsers(prev => prev.map(u => {
       if (u.id === userId) {
         let newDepBal = u.depositBalance || 0;
         let newTaskBal = u.taskBalance || 0;
+        oldTier = u.userType || 'General';
 
         if (balanceType === 'deposit') {
           newDepBal = type === 'add' ? newDepBal + amount : Math.max(0, newDepBal - amount);
@@ -1401,11 +1650,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
 
+        finalDepBal = newDepBal;
+        // Recalculate tier (supports both upgrades and downgrades when balance is cut)
+        const recalculatedTier = calculateTierFromFixedBalance(newDepBal);
+        newTier = recalculatedTier;
+        isTierChanged = oldTier !== newTier;
+
         return {
           ...u,
           depositBalance: newDepBal,
           taskBalance: newTaskBal,
-          balance: newDepBal + newTaskBal
+          balance: newDepBal + newTaskBal,
+          userType: recalculatedTier
         };
       }
       return u;
@@ -1425,7 +1681,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setTransactions(prev => [newTrx, ...prev]);
 
-    // Customer Notification
+    // Customer Notification for Balance Adjustment
     addNotification({
       target: 'customer',
       userId,
@@ -1439,7 +1695,91 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       amount
     });
 
+    // Customer Notification if Tier Level was upgraded or downgraded
+    if (isTierChanged) {
+      const isDowngrade = type === 'deduct' || balanceType === 'deposit';
+      addNotification({
+        target: 'customer',
+        userId,
+        category: 'tier',
+        type: isDowngrade ? 'warning' : 'success',
+        title: isDowngrade ? `Tier Level Downgraded to ${newTier}` : `Tier Level Upgraded to ${newTier}`,
+        titleBn: isDowngrade ? `মেম্বারশিপ লেভেল পরিবর্তন: ${newTier}` : `মেম্বারশিপ লেভেল আপগ্রেড: ${newTier}`,
+        message: `Your fixed deposit balance is now ৳${finalDepBal.toLocaleString()}. Your membership tier has been recalculated to ${newTier}.`,
+        messageBn: `আপনার বর্তমান ফিক্সড ব্যালেন্স ৳${finalDepBal.toLocaleString()} অনুযায়ী আপনার মেম্বারশিপ লেভেল ${newTier} এ নির্ধারিত হয়েছে।`,
+        actionTab: 'deposit'
+      });
+    }
+
     showToast(lang === 'bn' ? `ব্যালেন্স সমন্বয় সম্পন্ন হয়েছে (৳${amount})` : `Balance adjustment completed (৳${amount})`, 'success');
+  };
+
+  const updateUserByAdmin = (userId: string, updates: Partial<User>) => {
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        const nextUser = { ...u, ...updates };
+        // Recalculate total balance if sub-balances are adjusted
+        const depBal = typeof updates.depositBalance === 'number' ? updates.depositBalance : (nextUser.depositBalance ?? 0);
+        const taskBal = typeof updates.taskBalance === 'number' ? updates.taskBalance : (nextUser.taskBalance ?? 0);
+        nextUser.depositBalance = depBal;
+        nextUser.taskBalance = taskBal;
+        nextUser.balance = depBal + taskBal;
+
+        // If deposit balance is updated and userType not explicitly fixed, recalculate tier (supports downgrade)
+        if (updates.userType) {
+          nextUser.userType = updates.userType;
+        } else if (typeof updates.depositBalance === 'number') {
+          nextUser.userType = calculateTierFromFixedBalance(depBal);
+        }
+
+        return nextUser;
+      }
+      return u;
+    }));
+    showToast(lang === 'bn' ? 'ব্যবহারকারীর তথ্য সফলভাবে আপডেট হয়েছে' : 'User profile updated successfully by admin', 'success');
+  };
+
+  const changeUserTier = (userId: string, tier: UserTier) => {
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        return { ...u, userType: tier };
+      }
+      return u;
+    }));
+
+    addNotification({
+      target: 'customer',
+      userId,
+      category: 'tier',
+      type: 'success',
+      title: `Tier Updated: ${tier}`,
+      titleBn: `অ্যাকাউন্ট টিয়ার পরিবর্তিত: ${tier}`,
+      message: `Admin has updated your account membership tier to ${tier}. Enjoy your new daily task limits and benefits!`,
+      messageBn: `অ্যাডমিন আপনার অ্যাকাউন্ট মেম্বারশিপ টিয়ার ${tier} এ আপডেট করেছেন। নতুন সুবিধা ও লিমিট উপভোগ করুন!`,
+      actionTab: 'profile'
+    });
+
+    showToast(lang === 'bn' ? `টিয়ার পরিবর্তিত হয়েছে: ${tier}` : `User tier changed to ${tier}`, 'success');
+  };
+
+  const deleteUser = (userId: string): boolean => {
+    const target = users.find(u => u.id === userId);
+    if (!target) return false;
+
+    if (target.role === 'admin' || target.id === 'usr_admin') {
+      showToast(lang === 'bn' ? 'অ্যাডমিন অ্যাকাউন্ট ডিলিট করা সম্ভব নয়' : 'Cannot delete the system administrator account', 'error');
+      return false;
+    }
+
+    // If deleting the currently logged-in customer, clear their session
+    if (currentCustomerId === userId) {
+      setCurrentCustomerId(null);
+      localStorage.removeItem('taskpay_customer_id_v4');
+    }
+
+    setUsers(prev => prev.filter(u => u.id !== userId));
+    showToast(lang === 'bn' ? `ব্যবহারকারী "${target.name}" মুছে ফেলা হয়েছে` : `User "${target.name}" deleted successfully`, 'info');
+    return true;
   };
 
   const updatePaymentMethod = (id: string, updates: Partial<PaymentMethodConfig>) => {
@@ -1510,8 +1850,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateAnnouncement,
         deleteAnnouncement,
         toggleAnnouncement,
+        addUserByAdmin,
         toggleUserStatus,
+        blockUser,
+        unblockUser,
+        setUserStatus,
         adjustUserBalance,
+        updateUserByAdmin,
+        changeUserTier,
+        deleteUser,
         updatePaymentMethod,
         updateSystemSettings,
         showToast,

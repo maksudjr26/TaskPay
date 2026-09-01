@@ -164,7 +164,7 @@ export const AdminSettings: React.FC = () => {
             <span>Financial & Activation Thresholds</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Minimum Activation Recharge */}
             <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-2">
               <label className="block text-xs font-black text-emerald-950 uppercase tracking-wide">
@@ -181,7 +181,7 @@ export const AdminSettings: React.FC = () => {
                 />
               </div>
               <p className="text-[11px] text-emerald-800 leading-snug">
-                Customer account activates automatically once their approved deposit reaches this amount.
+                Customer account activates automatically once their approved deposit reaches this amount (Level 1).
               </p>
             </div>
 
@@ -201,7 +201,7 @@ export const AdminSettings: React.FC = () => {
                 />
               </div>
               <p className="text-[11px] text-slate-500 leading-snug">
-                Minimum earned balance required before a user can submit a withdrawal request.
+                Minimum Earning Balance required before a user can submit a withdrawal request.
               </p>
             </div>
 
@@ -223,6 +223,58 @@ export const AdminSettings: React.FC = () => {
               <p className="text-[11px] text-slate-500 leading-snug">
                 Safety ceiling per withdrawal submission to prevent rapid liquidity drain.
               </p>
+            </div>
+
+            {/* Referral Commission % */}
+            <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-2">
+              <label className="block text-xs font-black text-amber-950 uppercase tracking-wide">
+                Referral Bonus (% on 1st Deposit)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-amber-600">%</span>
+                <input
+                  type="number"
+                  value={formData.referralBonusPercent || 5}
+                  onChange={(e) => setFormData({ ...formData, referralBonusPercent: parseFloat(e.target.value) || 0 })}
+                  className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-amber-300 bg-white font-black text-lg text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  required
+                />
+              </div>
+              <p className="text-[11px] text-amber-800 leading-snug">
+                Referrer earns this percentage from the referee's 1st approved deposit. Credited directly as Fixed Balance!
+              </p>
+            </div>
+          </div>
+
+          {/* Tiered Level-Up Milestones Grid */}
+          <div className="pt-4 border-t border-slate-100 space-y-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <h4 className="text-xs font-extrabold uppercase tracking-wide text-slate-800">
+                Tiered Level-Up Milestones (Cumulative Fixed Deposit Balance)
+              </h4>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <div className="text-[11px] font-bold text-emerald-700">Level 1 (General)</div>
+                <div className="text-xs text-slate-500">৳{formData.level1Threshold || 500}</div>
+              </div>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <div className="text-[11px] font-bold text-slate-700">Level 2 (Silver)</div>
+                <div className="text-xs text-slate-500">৳{formData.level2Threshold || 1000} (+৳500)</div>
+              </div>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <div className="text-[11px] font-bold text-amber-700">Level 3 (Gold)</div>
+                <div className="text-xs text-slate-500">৳{formData.level3Threshold || 3000} (+৳2,000)</div>
+              </div>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <div className="text-[11px] font-bold text-cyan-700">Level 4 (Platinum)</div>
+                <div className="text-xs text-slate-500">৳{formData.level4Threshold || 6000} (+৳3,000)</div>
+              </div>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <div className="text-[11px] font-bold text-purple-700">Level 5 (VIP)</div>
+                <div className="text-xs text-slate-500">৳{formData.level5Threshold || 10000}+</div>
+              </div>
             </div>
           </div>
         </div>

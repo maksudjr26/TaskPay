@@ -153,7 +153,7 @@ export const NotificationBellModal: React.FC<Props> = ({
               </div>
               <div>
                 <h3 className="text-xs sm:text-sm font-bold leading-tight">
-                  {lang === 'bn' ? t.notificationCenter : 'Notifications'}
+                  {lang === 'bn' ? 'নোটিফিকেশন সেন্টার' : 'Notifications'}
                 </h3>
                 <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                   {unreadCount > 0 
@@ -370,7 +370,7 @@ export const NotificationBellModal: React.FC<Props> = ({
               }`}
             >
               <CheckCheck className="w-3.5 h-3.5" />
-              <span>{lang === 'bn' ? t.markAllAsRead : 'Mark all as read'}</span>
+              <span>{lang === 'bn' ? 'সব পঠিত চিহ্নিত করুন' : 'Mark all as read'}</span>
             </button>
 
             <button
@@ -380,7 +380,7 @@ export const NotificationBellModal: React.FC<Props> = ({
               }`}
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>{lang === 'bn' ? t.clearAll : 'Clear all'}</span>
+              <span>{lang === 'bn' ? 'সব মুছে ফেলুন' : 'Clear all'}</span>
             </button>
           </div>
         </div>

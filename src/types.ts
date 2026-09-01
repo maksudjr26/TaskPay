@@ -1,5 +1,5 @@
 export type UserRole = 'customer' | 'admin';
-export type AccountStatus = 'active' | 'inactive';
+export type AccountStatus = 'active' | 'inactive' | 'blocked';
 export type UserTier = 'General' | 'Silver' | 'Gold' | 'Platinum' | 'VIP';
 export type TaskType = 'captcha' | 'math_quiz' | 'read_article' | 'video_ad' | 'survey' | 'social_share';
 export type TransactionType = 'deposit' | 'withdrawal' | 'task_reward' | 'activation_fee' | 'admin_adjustment' | 'referral_bonus' | 'tier_upgrade';
@@ -36,8 +36,8 @@ export interface User {
   status: AccountStatus;
   userType: UserTier;
   balance: number; // Total balance = depositBalance + taskBalance
-  depositBalance: number; // Separate balance from approved deposits/recharges
-  taskBalance: number; // Separate balance earned from completing tasks
+  depositBalance: number; // Reserved Fixed Balance from approved deposits/recharges & referral bonuses
+  taskBalance: number; // Withdrawable Earning Balance earned from completing tasks
   totalEarned: number;
   totalDeposited: number;
   totalWithdrawn: number;
@@ -46,6 +46,9 @@ export interface User {
   avatar?: string;
   referredBy?: string;
   referralCode?: string;
+  referralCount?: number;
+  referralBonusEarned?: number;
+  firstDepositApproved?: boolean;
   notes?: string;
 }
 
@@ -170,6 +173,12 @@ export interface SystemSettings {
   minActivationAmount: number; // e.g. 500 BDT
   minWithdrawAmount: number; // e.g. 100 BDT
   maxWithdrawAmount: number; // e.g. 25000 BDT
+  referralBonusPercent: number; // e.g. 5% from first deposit
+  level1Threshold: number; // 500 BDT (General)
+  level2Threshold: number; // 1000 BDT (Silver)
+  level3Threshold: number; // 3000 BDT (Gold)
+  level4Threshold: number; // 6000 BDT (Platinum)
+  level5Threshold: number; // 10000 BDT (VIP)
   dailyTaskLimit: number;
   currencySymbol: string;
   currencyCode: string;
@@ -196,7 +205,7 @@ export interface TransactionRecord {
 }
 
 export type NotificationTarget = 'all' | 'admin' | 'customer';
-export type NotificationCategory = 'deposit' | 'withdrawal' | 'task' | 'tier' | 'system' | 'account';
+export type NotificationCategory = 'deposit' | 'withdrawal' | 'task' | 'tier' | 'system' | 'account' | 'referral' | 'level_up';
 
 export interface AppNotification {
   id: string;

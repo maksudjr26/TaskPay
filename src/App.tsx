@@ -11,6 +11,7 @@ import { CustomerProfile } from './components/customer/CustomerProfile';
 import { CustomerFooter } from './components/customer/CustomerFooter';
 import { CustomerAuth } from './components/customer/CustomerAuth';
 import { TaskInteractionModal } from './components/customer/TaskInteractionModal';
+import { DepositAlertModal } from './components/customer/DepositAlertModal';
 
 import { AdminHeader } from './components/admin/AdminHeader';
 import { AdminDashboard } from './components/admin/AdminDashboard';
@@ -72,6 +73,42 @@ const MainLayout: React.FC = () => {
   const [adminActiveTab, setAdminActiveTab] = useState<string>('admin_dashboard');
   const [activeTaskModal, setActiveTaskModal] = useState<Task | null>(null);
   const [viewportMode, setViewportMode] = useState<ViewportMode>('responsive');
+
+  // Account activation status: Active if status is 'active' or deposited at least 500 BDT
+  const isAccountActive =
+    currentUser.status === 'active' ||
+    (currentUser.depositBalance ?? 0) >= (settings.minActivationAmount || 500) ||
+    (currentUser.totalDeposited ?? 0) >= (settings.minActivationAmount || 500);
+
+  const [isDepositAlertOpen, setIsDepositAlertOpen] = useState<boolean>(false);
+  const [depositAlertFeature, setDepositAlertFeature] = useState<{ name: string; nameBn: string }>({
+    name: 'Daily Tasks & Earning',
+    nameBn: 'দৈনিক টাস্ক ও ইনকাম'
+  });
+
+  // Guard navigation to restricted tabs for unactivated users
+  const handleCustomerNavigate = (tab: string) => {
+    if (!isAccountActive && (tab === 'tasks' || tab === 'withdraw')) {
+      setDepositAlertFeature(
+        tab === 'tasks'
+          ? { name: 'Daily Tasks & Earning', nameBn: 'দৈনিক টাস্ক ও ইনকাম' }
+          : { name: 'Cash Out & Withdrawals', nameBn: 'টাকা উত্তোলন সুবিধা' }
+      );
+      setIsDepositAlertOpen(true);
+      return;
+    }
+    setCustomerActiveTab(tab);
+  };
+
+  // Guard opening tasks for unactivated users
+  const handleOpenTaskModal = (task: Task) => {
+    if (!isAccountActive) {
+      setDepositAlertFeature({ name: 'Daily Tasks & Earning', nameBn: 'দৈনিক টাস্ক ও ইনকাম' });
+      setIsDepositAlertOpen(true);
+      return;
+    }
+    setActiveTaskModal(task);
+  };
 
   return (
     <div className="min-h-screen bg-slate-200/70 text-slate-800 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
@@ -219,41 +256,54 @@ const MainLayout: React.FC = () => {
             ) : (
               <div className="flex-1 flex flex-col">
                 {/* Customer Top Navigation */}
-                <CustomerNavbar activeTab={customerActiveTab} setActiveTab={setCustomerActiveTab} />
+                <CustomerNavbar
+                  activeTab={customerActiveTab}
+                  setActiveTab={handleCustomerNavigate}
+                  isAccountActive={isAccountActive}
+                />
 
                 {/* Customer Main Screen Body */}
                 <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-24 md:pb-12">
                   {customerActiveTab === 'dashboard' && (
                     <CustomerDashboard
-                      setActiveTab={setCustomerActiveTab}
-                      onOpenTaskModal={(task) => setActiveTaskModal(task)}
+                      setActiveTab={handleCustomerNavigate}
+                      onOpenTaskModal={handleOpenTaskModal}
+                      isAccountActive={isAccountActive}
                     />
                   )}
                   {customerActiveTab === 'tasks' && (
                     <CustomerTasks
-                      setActiveTab={setCustomerActiveTab}
-                      onOpenTaskModal={(task) => setActiveTaskModal(task)}
+                      setActiveTab={handleCustomerNavigate}
+                      onOpenTaskModal={handleOpenTaskModal}
+                      isAccountActive={isAccountActive}
                     />
                   )}
                   {customerActiveTab === 'deposit' && (
-                    <CustomerDeposit setActiveTab={setCustomerActiveTab} />
+                    <CustomerDeposit setActiveTab={handleCustomerNavigate} />
                   )}
                   {customerActiveTab === 'withdraw' && (
-                    <CustomerWithdraw setActiveTab={setCustomerActiveTab} />
+                    <CustomerWithdraw
+                      setActiveTab={handleCustomerNavigate}
+                      isAccountActive={isAccountActive}
+                    />
                   )}
                   {customerActiveTab === 'history' && (
                     <CustomerHistory />
                   )}
                   {customerActiveTab === 'profile' && (
-                    <CustomerProfile setActiveTab={setCustomerActiveTab} />
+                    <CustomerProfile setActiveTab={handleCustomerNavigate} />
                   )}
                 </main>
 
                 {/* Customer Footer */}
-                <CustomerFooter setActiveTab={setCustomerActiveTab} />
+                <CustomerFooter setActiveTab={handleCustomerNavigate} />
 
                 {/* Mobile Bottom Nav */}
-                <CustomerBottomNav activeTab={customerActiveTab} setActiveTab={setCustomerActiveTab} />
+                <CustomerBottomNav
+                  activeTab={customerActiveTab}
+                  setActiveTab={handleCustomerNavigate}
+                  isAccountActive={isAccountActive}
+                />
               </div>
             )}
           </div>
@@ -321,6 +371,18 @@ const MainLayout: React.FC = () => {
           }}
         />
       )}
+
+      {/* 3.1 Deposit Alert Modal for Inactive Accounts */}
+      <DepositAlertModal
+        isOpen={isDepositAlertOpen}
+        onClose={() => setIsDepositAlertOpen(false)}
+        onDepositClick={() => {
+          setIsDepositAlertOpen(false);
+          setCustomerActiveTab('deposit');
+        }}
+        featureName={depositAlertFeature.name}
+        featureNameBn={depositAlertFeature.nameBn}
+      />
 
       {/* 4. Global Floating Toast Notifications */}
       <div className="fixed bottom-16 md:bottom-6 right-4 sm:right-6 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full">

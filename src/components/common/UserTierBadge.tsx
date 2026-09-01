@@ -11,6 +11,9 @@ interface UserTierBadgeProps {
 }
 
 export const TIER_CONFIG: Record<UserTier, {
+  level: number;
+  levelLabelBn: string;
+  levelLabelEn: string;
   nameBn: string;
   nameEn: string;
   shortDescBn: string;
@@ -25,10 +28,13 @@ export const TIER_CONFIG: Record<UserTier, {
   icon: React.ElementType;
 }> = {
   General: {
-    nameBn: 'জেনারেল মেম্বার',
-    nameEn: 'General Member',
-    shortDescBn: '১.০x সাধারণ রিওয়ার্ড',
-    shortDescEn: '1.0x Standard Rate',
+    level: 1,
+    levelLabelBn: 'লেভেল ১',
+    levelLabelEn: 'Level 1',
+    nameBn: 'লেভেল ১: জেনারেল মেম্বার',
+    nameEn: 'Level 1: General Member',
+    shortDescBn: '১.০x সাধারণ রিওয়ার্ড (১০টি টাস্ক)',
+    shortDescEn: '1.0x Standard Rate (10 Tasks)',
     amount: 500,
     multiplier: '1.0x',
     multiplierNum: 1.0,
@@ -39,10 +45,13 @@ export const TIER_CONFIG: Record<UserTier, {
     icon: Shield
   },
   Silver: {
-    nameBn: 'সিলভার বুস্টার',
-    nameEn: 'Silver Booster',
-    shortDescBn: '+২৫% রিওয়ার্ড বুস্ট (১.২৫x)',
-    shortDescEn: '+25% Boost (1.25x)',
+    level: 2,
+    levelLabelBn: 'লেভেল ২',
+    levelLabelEn: 'Level 2',
+    nameBn: 'লেভেল ২: সিলভার বুস্টার',
+    nameEn: 'Level 2: Silver Booster',
+    shortDescBn: '+২৫% রিওয়ার্ড বুস্ট (১.২৫x • ২০টি টাস্ক)',
+    shortDescEn: '+25% Boost (1.25x • 20 Tasks)',
     amount: 1000,
     multiplier: '1.25x',
     multiplierNum: 1.25,
@@ -53,10 +62,13 @@ export const TIER_CONFIG: Record<UserTier, {
     icon: Star
   },
   Gold: {
-    nameBn: 'গোল্ড প্রো এলিট',
-    nameEn: 'Gold Pro Elite',
-    shortDescBn: '+৭৫% রিওয়ার্ড বুস্ট (১.৭৫x)',
-    shortDescEn: '+75% Boost (1.75x)',
+    level: 3,
+    levelLabelBn: 'লেভেল ৩',
+    levelLabelEn: 'Level 3',
+    nameBn: 'লেভেল ৩: গোল্ড প্রো এলিট',
+    nameEn: 'Level 3: Gold Pro Elite',
+    shortDescBn: '+৭৫% রিওয়ার্ড বুস্ট (১.৭৫x • ৩৫টি টাস্ক)',
+    shortDescEn: '+75% Boost (1.75x • 35 Tasks)',
     amount: 3000,
     multiplier: '1.75x',
     multiplierNum: 1.75,
@@ -67,11 +79,14 @@ export const TIER_CONFIG: Record<UserTier, {
     icon: Award
   },
   Platinum: {
-    nameBn: 'প্লাটিনাম মাস্টার',
-    nameEn: 'Platinum Master',
-    shortDescBn: '+১২৫% সুপার বুস্ট (২.২৫x)',
-    shortDescEn: '+125% Super Boost (2.25x)',
-    amount: 5000,
+    level: 4,
+    levelLabelBn: 'লেভেল ৪',
+    levelLabelEn: 'Level 4',
+    nameBn: 'লেভেল ৪: প্লাটিনাম মাস্টার',
+    nameEn: 'Level 4: Platinum Master',
+    shortDescBn: '+১২৫% সুপার বুস্ট (২.২৫x • ৫০টি টাস্ক)',
+    shortDescEn: '+125% Super Boost (2.25x • 50 Tasks)',
+    amount: 6000,
     multiplier: '2.25x',
     multiplierNum: 2.25,
     bgGradient: 'from-cyan-400 via-sky-200 to-teal-300',
@@ -81,10 +96,13 @@ export const TIER_CONFIG: Record<UserTier, {
     icon: Gem
   },
   VIP: {
-    nameBn: 'রয়্যাল ভিআইপি সুপ্রিম',
-    nameEn: 'Royal VIP Supreme',
-    shortDescBn: '৩.০x ট্রিপল রিওয়ার্ড (৩০০%)',
-    shortDescEn: '3.0x TRIPLE Reward',
+    level: 5,
+    levelLabelBn: 'লেভেল ৫ (ভিআইপি)',
+    levelLabelEn: 'Level 5 (VIP)',
+    nameBn: 'লেভেল ৫: রয়্যাল ভিআইপি সুপ্রিম',
+    nameEn: 'Level 5: Royal VIP Supreme',
+    shortDescBn: '৩.০x ট্রিপল রিওয়ার্ড (৩০০% • ৭৫টি টাস্ক)',
+    shortDescEn: '3.0x TRIPLE Reward (75 Tasks)',
     amount: 10000,
     multiplier: '3.0x',
     multiplierNum: 3.0,
@@ -94,6 +112,140 @@ export const TIER_CONFIG: Record<UserTier, {
     glowColor: 'shadow-purple-500/40',
     icon: Crown
   }
+};
+
+export const calculateTierFromFixedBalance = (fixedBalance: number): UserTier => {
+  if (fixedBalance >= 10000) return 'VIP';
+  if (fixedBalance >= 6000) return 'Platinum';
+  if (fixedBalance >= 3000) return 'Gold';
+  if (fixedBalance >= 1000) return 'Silver';
+  if (fixedBalance >= 500) return 'General';
+  return 'General';
+};
+
+export const TIER_LEVELS: {
+  tier: UserTier;
+  level: number;
+  threshold: number;
+  multiplier: number;
+  tasks: number;
+}[] = [
+  { tier: 'General', level: 1, threshold: 500, multiplier: 1.0, tasks: 10 },
+  { tier: 'Silver', level: 2, threshold: 1000, multiplier: 1.25, tasks: 20 },
+  { tier: 'Gold', level: 3, threshold: 3000, multiplier: 1.75, tasks: 35 },
+  { tier: 'Platinum', level: 4, threshold: 6000, multiplier: 2.25, tasks: 50 },
+  { tier: 'VIP', level: 5, threshold: 10000, multiplier: 3.0, tasks: 75 },
+];
+
+export const getNextLevelInfo = (currentFixedBalance: number) => {
+  const fixed = Math.max(0, currentFixedBalance || 0);
+
+  if (fixed < 500) {
+    return {
+      currentLevel: 0,
+      currentTier: 'General' as UserTier,
+      nextLevel: 1,
+      nextTier: 'General' as UserTier,
+      currentThreshold: 0,
+      targetAmount: 500,
+      neededAmount: 500 - fixed,
+      progressPercent: Math.min(100, Math.max(0, Math.round((fixed / 500) * 100))),
+      totalProgressPercent: Math.min(100, Math.max(0, Math.round((fixed / 10000) * 100))),
+      currentConfig: TIER_CONFIG.General,
+      nextConfig: TIER_CONFIG.General,
+      isMaxLevel: false,
+      multiplierBoostBn: '১.০x স্ট্যান্ডার্ড রিওয়ার্ড (১০টি টাস্ক)',
+      multiplierBoostEn: '1.0x Standard Rate (10 Tasks)'
+    };
+  }
+  if (fixed < 1000) {
+    return {
+      currentLevel: 1,
+      currentTier: 'General' as UserTier,
+      nextLevel: 2,
+      nextTier: 'Silver' as UserTier,
+      currentThreshold: 500,
+      targetAmount: 1000,
+      neededAmount: 1000 - fixed,
+      progressPercent: Math.min(100, Math.max(0, Math.round(((fixed - 500) / 500) * 100))),
+      totalProgressPercent: Math.min(100, Math.max(0, Math.round((fixed / 10000) * 100))),
+      currentConfig: TIER_CONFIG.General,
+      nextConfig: TIER_CONFIG.Silver,
+      isMaxLevel: false,
+      multiplierBoostBn: '+২৫% রিওয়ার্ড বুস্ট (১.২৫x • ২০টি টাস্ক)',
+      multiplierBoostEn: '+25% Boost (1.25x • 20 Tasks)'
+    };
+  }
+  if (fixed < 3000) {
+    return {
+      currentLevel: 2,
+      currentTier: 'Silver' as UserTier,
+      nextLevel: 3,
+      nextTier: 'Gold' as UserTier,
+      currentThreshold: 1000,
+      targetAmount: 3000,
+      neededAmount: 3000 - fixed,
+      progressPercent: Math.min(100, Math.max(0, Math.round(((fixed - 1000) / 2000) * 100))),
+      totalProgressPercent: Math.min(100, Math.max(0, Math.round((fixed / 10000) * 100))),
+      currentConfig: TIER_CONFIG.Silver,
+      nextConfig: TIER_CONFIG.Gold,
+      isMaxLevel: false,
+      multiplierBoostBn: '+৭৫% রিওয়ার্ড বুস্ট (১.৭৫x • ৩৫টি টাস্ক)',
+      multiplierBoostEn: '+75% Boost (1.75x • 35 Tasks)'
+    };
+  }
+  if (fixed < 6000) {
+    return {
+      currentLevel: 3,
+      currentTier: 'Gold' as UserTier,
+      nextLevel: 4,
+      nextTier: 'Platinum' as UserTier,
+      currentThreshold: 3000,
+      targetAmount: 6000,
+      neededAmount: 6000 - fixed,
+      progressPercent: Math.min(100, Math.max(0, Math.round(((fixed - 3000) / 3000) * 100))),
+      totalProgressPercent: Math.min(100, Math.max(0, Math.round((fixed / 10000) * 100))),
+      currentConfig: TIER_CONFIG.Gold,
+      nextConfig: TIER_CONFIG.Platinum,
+      isMaxLevel: false,
+      multiplierBoostBn: '+১২৫% সুপার বুস্ট (২.২৫x • ৫০টি টাস্ক)',
+      multiplierBoostEn: '+125% Super Boost (2.25x • 50 Tasks)'
+    };
+  }
+  if (fixed < 10000) {
+    return {
+      currentLevel: 4,
+      currentTier: 'Platinum' as UserTier,
+      nextLevel: 5,
+      nextTier: 'VIP' as UserTier,
+      currentThreshold: 6000,
+      targetAmount: 10000,
+      neededAmount: 10000 - fixed,
+      progressPercent: Math.min(100, Math.max(0, Math.round(((fixed - 6000) / 4000) * 100))),
+      totalProgressPercent: Math.min(100, Math.max(0, Math.round((fixed / 10000) * 100))),
+      currentConfig: TIER_CONFIG.Platinum,
+      nextConfig: TIER_CONFIG.VIP,
+      isMaxLevel: false,
+      multiplierBoostBn: '৩.০x ট্রিপল রিওয়ার্ড (৩০০% • ৭৫টি টাস্ক)',
+      multiplierBoostEn: '3.0x TRIPLE Reward (75 Tasks)'
+    };
+  }
+  return {
+    currentLevel: 5,
+    currentTier: 'VIP' as UserTier,
+    nextLevel: null,
+    nextTier: null,
+    currentThreshold: 10000,
+    targetAmount: 10000,
+    neededAmount: 0,
+    progressPercent: 100,
+    totalProgressPercent: 100,
+    currentConfig: TIER_CONFIG.VIP,
+    nextConfig: null,
+    isMaxLevel: true,
+    multiplierBoostBn: '৩.০x সর্বোচ্চ ট্রিপল রিওয়ার্ড (আনলকড)',
+    multiplierBoostEn: '3.0x TRIPLE Maximum Reward (Active)'
+  };
 };
 
 export const UserTierBadge: React.FC<UserTierBadgeProps> = ({

@@ -53,12 +53,12 @@ export const CustomerProfile: React.FC<Props> = ({ setActiveTab }) => {
   const [confirmPass, setConfirmPass] = useState('');
   const [copiedRef, setCopiedRef] = useState(false);
 
-  const referralLink = `${window.location.origin}/?ref=${currentUser.referralCode || 'TASK10'}`;
+  const referralCode = currentUser.referralCode || 'TASK10';
 
   const handleCopyRef = () => {
-    navigator.clipboard.writeText(referralLink);
+    navigator.clipboard.writeText(referralCode);
     setCopiedRef(true);
-    showToast(lang === 'bn' ? 'রেফারেল লিংক কপি হয়েছে!' : 'Referral link copied!', 'info');
+    showToast(lang === 'bn' ? 'রেফারেল কোড কপি হয়েছে!' : 'Referral code copied!', 'info');
     setTimeout(() => setCopiedRef(false), 2500);
   };
 
@@ -261,38 +261,96 @@ export const CustomerProfile: React.FC<Props> = ({ setActiveTab }) => {
         </div>
       </div>
 
-      {/* Referral & Invite Section */}
-      <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-950 text-white p-6 sm:p-8 rounded-3xl shadow-xl border border-indigo-800/40 space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
-            <Share2 className="w-5 h-5" />
+      {/* Referral & Invite Section Managed By Referral Code */}
+      <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-950 text-white p-6 sm:p-8 rounded-3xl shadow-xl border border-indigo-800/40 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center border border-indigo-500/30">
+              <Share2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
+                <span>{t.referralProgram}</span>
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  5% Commission
+                </span>
+              </h3>
+              <p className="text-xs text-slate-300 max-w-xl mt-0.5 leading-relaxed">
+                {t.referralBonusInfo}
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-bold text-base text-white">{t.referralProgram}</h3>
-            <p className="text-xs text-slate-300">{t.referralBonusInfo}</p>
+
+          {/* Quick Stats Badges */}
+          <div className="flex items-center gap-2.5 self-start sm:self-center">
+            <div className="px-3.5 py-2 rounded-xl bg-slate-800/90 border border-slate-700 text-center">
+              <div className="text-[10px] text-slate-400 font-medium">{lang === 'bn' ? 'রেফারকৃত মেম্বার' : 'Referred Users'}</div>
+              <div className="text-sm font-black text-white">{currentUser.referralCount || 0} জন</div>
+            </div>
+            <div className="px-3.5 py-2 rounded-xl bg-slate-800/90 border border-slate-700 text-center">
+              <div className="text-[10px] text-slate-400 font-medium">{lang === 'bn' ? 'অর্জিত ৫% বোনাস' : 'Referral Earnings'}</div>
+              <div className="text-sm font-black text-emerald-400">৳{(currentUser.referralBonusEarned || 0).toLocaleString()}</div>
+            </div>
           </div>
         </div>
 
-        <div className="bg-slate-800/90 p-3.5 rounded-2xl border border-slate-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="text-xs font-mono text-indigo-300 truncate select-all">
-            {referralLink}
+        {/* Big Monospace Referral Code Box */}
+        <div className="bg-slate-800/90 p-4 sm:p-5 rounded-2xl border border-slate-700/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div>
+            <div className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1">
+              {lang === 'bn' ? 'আপনার ব্যক্তিগত রেফারেল কোড:' : 'Your Personal Referral Code:'}
+            </div>
+            <div className="text-2xl sm:text-3xl font-black font-mono tracking-widest text-amber-300 select-all">
+              {referralCode}
+            </div>
           </div>
-          <button
-            onClick={handleCopyRef}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shrink-0"
-          >
-            {copiedRef ? (
-              <>
-                <Check className="w-3.5 h-3.5" />
-                <span>{t.copied}</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" />
-                <span>{t.copy}</span>
-              </>
-            )}
-          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopyRef}
+              className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-95"
+            >
+              {copiedRef ? (
+                <>
+                  <Check className="w-4 h-4 text-slate-950" />
+                  <span>{lang === 'bn' ? 'কোড কপি হয়েছে!' : 'Code Copied!'}</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 text-slate-950" />
+                  <span>{lang === 'bn' ? 'রেফারেল কোড কপি করুন' : 'Copy Referral Code'}</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Explanation Steps */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
+          <div className="bg-slate-800/50 border border-slate-700/60 p-3 rounded-xl">
+            <div className="font-bold text-amber-300 mb-1">১. কোড শেয়ার করুন</div>
+            <div className="text-slate-300 text-[11px]">
+              {lang === 'bn'
+                ? 'আপনার বন্ধুদের সাথে এই রেফারেল কোডটি শেয়ার করুন।'
+                : 'Share your unique referral code with your friends.'}
+            </div>
+          </div>
+          <div className="bg-slate-800/50 border border-slate-700/60 p-3 rounded-xl">
+            <div className="font-bold text-amber-300 mb-1">২. রেজিস্ট্রেশনে কোড ইনপুট</div>
+            <div className="text-slate-300 text-[11px]">
+              {lang === 'bn'
+                ? 'বন্ধুরা একাউন্ট খোলার সময় রেফারেল কোড বক্সে আপনার কোডটি লিখবে।'
+                : 'Your friend enters your referral code during account registration.'}
+            </div>
+          </div>
+          <div className="bg-slate-800/50 border border-slate-700/60 p-3 rounded-xl">
+            <div className="font-bold text-emerald-400 mb-1">৩. ৫% ইনস্ট্যান্ট ফিক্সড বোনাস</div>
+            <div className="text-slate-300 text-[11px]">
+              {lang === 'bn'
+                ? 'তারা প্রথম ডিপোজিট করলেই ৫% ক্যাশ বোনাস আপনার ফিক্সড ব্যালেন্সে জমা হবে।'
+                : 'Receive 5% instant commission added to your Fixed Deposit on their 1st deposit!'}
+            </div>
+          </div>
         </div>
       </div>
 

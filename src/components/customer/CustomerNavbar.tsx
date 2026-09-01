@@ -9,23 +9,35 @@ import {
   ArrowUpRight,
   Sparkles,
   CheckCircle2,
-  Bell
+  Bell,
+  Lock
 } from 'lucide-react';
 
 interface Props {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  isAccountActive?: boolean;
 }
 
-export const CustomerNavbar: React.FC<Props> = ({ activeTab, setActiveTab }) => {
+export const CustomerNavbar: React.FC<Props> = ({
+  activeTab,
+  setActiveTab,
+  isAccountActive: isAccountActiveProp
+}) => {
   const { currentUser, t, lang, setLanguage, settings } = useApp();
 
-  const isAccountActive = currentUser.status === 'active';
+  const isAccountActive =
+    isAccountActiveProp !== undefined
+      ? isAccountActiveProp
+      : currentUser.status === 'active' ||
+        (currentUser.depositBalance ?? 0) >= (settings.minActivationAmount || 500) ||
+        (currentUser.totalDeposited ?? 0) >= (settings.minActivationAmount || 500);
+
   const navItems = [
     { id: 'dashboard', label: t.navDashboard },
-    { id: 'tasks', label: t.navTasks, badge: 'Daily' },
+    { id: 'tasks', label: t.navTasks, badge: isAccountActive ? 'Daily' : 'Lock ৳500', isLocked: !isAccountActive },
     { id: 'deposit', label: t.navDeposit, highlight: true },
-    { id: 'withdraw', label: t.navWithdraw },
+    { id: 'withdraw', label: t.navWithdraw, isLocked: !isAccountActive },
     { id: 'history', label: t.navHistory },
     { id: 'profile', label: t.navProfile },
   ];
@@ -68,8 +80,17 @@ export const CustomerNavbar: React.FC<Props> = ({ activeTab, setActiveTab }) => 
                     }`}
                   >
                     <span>{item.label}</span>
+                    {item.isLocked && (
+                      <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    )}
                     {item.badge && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold uppercase tracking-wider">
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                          item.isLocked
+                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}
+                      >
                         {item.badge}
                       </span>
                     )}
