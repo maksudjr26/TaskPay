@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AVAILABLE_ZONES } from '../../utils/mockData';
+import { SiteHistoryLiveStats } from '../common/SiteHistoryLiveStats';
 import {
   UserPlus,
   LogIn,
@@ -99,9 +100,9 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
   };
 
   return (
-    <div className="w-full max-w-md mx-auto my-6 sm:my-10 px-4">
+    <div className="w-full max-w-5xl mx-auto my-6 sm:my-10 px-4 space-y-8">
       {/* Container Card */}
-      <div className="bg-white rounded-3xl shadow-xl border border-slate-200/80 overflow-hidden">
+      <div className="max-w-md mx-auto bg-white rounded-3xl shadow-xl border border-slate-200/80 overflow-hidden">
         {/* Card Header */}
         <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-emerald-950 p-6 text-white text-center relative overflow-hidden">
           <div className="absolute -right-8 -top-8 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -419,6 +420,11 @@ export const CustomerAuth: React.FC<Props> = ({ initialMode = 'login', onSuccess
             </form>
           )}
         </div>
+      </div>
+
+      {/* Today's Live Stats & Lifetime History (Shown only for non-logged in visitors) */}
+      <div className="mt-8">
+        <SiteHistoryLiveStats lang={lang} />
       </div>
     </div>
   );

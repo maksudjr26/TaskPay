@@ -1,6 +1,5 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { SiteHistoryLiveStats } from '../common/SiteHistoryLiveStats';
 import { UserTierBadge } from '../common/UserTierBadge';
 import { TierAnnouncementBanner } from '../common/TierAnnouncementBanner';
 import { CustomerTierProgressBar } from './CustomerTierProgressBar';
@@ -23,7 +22,8 @@ import {
   CreditCard,
   Crown,
   Lock,
-  PlusCircle
+  PlusCircle,
+  BellRing
 } from 'lucide-react';
 
 interface Props {
@@ -46,6 +46,8 @@ export const CustomerDashboard: React.FC<Props> = ({
         (currentUser.depositBalance ?? 0) < (settings.minActivationAmount || 500) &&
         (currentUser.totalDeposited ?? 0) < (settings.minActivationAmount || 500);
 
+  const isNewUserNoDeposit = (currentUser.depositBalance ?? 0) <= 0 && (currentUser.totalDeposited ?? 0) <= 0;
+
   const minActivation = settings.minActivationAmount || 500;
   const currentDepositProgress = Math.min(100, Math.round(((currentUser.totalDeposited || 0) / minActivation) * 100));
 
@@ -65,18 +67,33 @@ export const CustomerDashboard: React.FC<Props> = ({
       {/* 1. Dynamic Tier-Targeted Announcement Banner */}
       <TierAnnouncementBanner onActionClick={(tab) => setActiveTab(tab)} />
 
-      {/* 2. Platform Broadcast Notice Ticker */}
-      <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border border-emerald-200/80 rounded-2xl p-3.5 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
-          <Zap className="w-4 h-4" />
+      {/* 2. Platform Broadcast Notice Ticker: Urgent Notice SHOWN ONLY FOR NEW (NO DEPOSIT) USERS */}
+      {isNewUserNoDeposit && (
+        <div className="bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-orange-500/15 border-2 border-amber-400/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <BellRing className="w-5 h-5 animate-bounce" />
+            </div>
+            <div className="text-xs sm:text-sm text-slate-900 font-bold leading-relaxed">
+              <span className="text-rose-700 font-black mr-1 uppercase tracking-wide">
+                {lang === 'bn' ? 'জরুরি ঘোষণা:' : 'Urgent Notice:'}
+              </span>
+              <span className="text-slate-800">
+                {lang === 'bn'
+                  ? 'জরুরি নোটিশ: একাউন্ট সক্রিয় করতে বিকাশ/নগদে ন্যূনতম ৳৫০০ রিচার্জ করুন। ৫-১৫ মিনিটের মধ্যে একাউন্ট সক্রিয় হয়ে যাবে!'
+                  : 'Urgent Notice: Recharge a minimum of ৳500 via bKash/Nagad to activate your account. Account activates within 5-15 minutes!'}
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setActiveTab('deposit')}
+            className="self-start sm:self-center px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs rounded-xl shadow-md transition-all shrink-0 cursor-pointer active:scale-95"
+          >
+            {lang === 'bn' ? 'রিচার্জ করুন' : 'Recharge ৳500'}
+          </button>
         </div>
-        <div className="text-xs sm:text-sm text-slate-800 font-medium overflow-hidden">
-          <span className="font-bold text-emerald-800 mr-1.5">
-            {lang === 'bn' ? 'জরুরি ঘোষণা:' : 'Platform Notice:'}
-          </span>
-          {lang === 'bn' ? settings.platformNoticeBn : settings.platformNotice}
-        </div>
-      </div>
+      )}
 
       {/* 3. Account Status & Activation Required Hero Card */}
       {isInactive ? (
@@ -319,9 +336,6 @@ export const CustomerDashboard: React.FC<Props> = ({
           <span className="text-xs sm:text-sm font-bold text-slate-800">{t.navHistory}</span>
         </button>
       </div>
-
-      {/* 6. Live Platform Activity & Site History (Randomized daily per requirement) */}
-      <SiteHistoryLiveStats lang={lang} />
 
       {/* 7. Featured Daily Task Spotlight */}
       {featuredTask && (

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { getTodaySiteStats } from '../../utils/mockData';
 import {
   UserPlus,
@@ -10,7 +10,8 @@ import {
   Zap,
   Clock,
   TrendingUp,
-  Globe
+  Globe,
+  Sparkles
 } from 'lucide-react';
 
 interface Props {
@@ -18,7 +19,90 @@ interface Props {
 }
 
 export const SiteHistoryLiveStats: React.FC<Props> = ({ lang = 'bn' }) => {
-  const stats = getTodaySiteStats();
+  const initial = getTodaySiteStats();
+
+  // Dynamic state that increments randomly time to time in a day
+  const [stats, setStats] = useState({
+    todayRegistrations: initial.todayRegistrations,
+    todayDepositsAmount: initial.todayDepositsAmount,
+    todayDepositsCount: initial.todayDepositsCount,
+    todayWithdrawalsAmount: initial.todayWithdrawalsAmount,
+    todayWithdrawalsCount: initial.todayWithdrawalsCount,
+    totalSiteMembers: initial.totalSiteMembers,
+    totalPaidOut: initial.totalPaidOut,
+    dateFormatted: initial.dateFormatted
+  });
+
+  const [recentPings, setRecentPings] = useState<{
+    type: 'reg' | 'dep' | 'with';
+    text: string;
+    textBn: string;
+    id: number;
+  }[]>([]);
+
+  // Random simulation interval
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const rand = Math.random();
+      const randId = Date.now();
+
+      if (rand < 0.4) {
+        // Increment registration
+        setStats(prev => ({
+          ...prev,
+          todayRegistrations: prev.todayRegistrations + 1,
+          totalSiteMembers: prev.totalSiteMembers + 1
+        }));
+        const phone = `01${['7', '8', '9', '6', '3'][Math.floor(Math.random() * 5)]}${Math.floor(10000000 + Math.random() * 90000000).toString().slice(0, 2)}***${Math.floor(100 + Math.random() * 900)}`;
+        setRecentPings(prev => [
+          {
+            type: 'reg',
+            text: `New member registered (${phone})`,
+            textBn: `নতুন মেম্বার নিবন্ধিত হয়েছেন (${phone})`,
+            id: randId
+          },
+          ...prev.slice(0, 4)
+        ]);
+      } else if (rand < 0.75) {
+        // Increment deposit
+        const depositBoost = [500, 1000, 1500, 3000, 5000][Math.floor(Math.random() * 5)];
+        setStats(prev => ({
+          ...prev,
+          todayDepositsAmount: prev.todayDepositsAmount + depositBoost,
+          todayDepositsCount: prev.todayDepositsCount + 1
+        }));
+        setRecentPings(prev => [
+          {
+            type: 'dep',
+            text: `Approved deposit ৳${depositBoost} credited`,
+            textBn: `৳${depositBoost} ডিপোজিট সফলভাবে জমা হয়েছে`,
+            id: randId
+          },
+          ...prev.slice(0, 4)
+        ]);
+      } else {
+        // Increment withdrawal
+        const withdrawBoost = [300, 500, 800, 1200, 2500][Math.floor(Math.random() * 5)];
+        setStats(prev => ({
+          ...prev,
+          todayWithdrawalsAmount: prev.todayWithdrawalsAmount + withdrawBoost,
+          todayWithdrawalsCount: prev.todayWithdrawalsCount + 1,
+          totalPaidOut: prev.totalPaidOut + withdrawBoost
+        }));
+        setRecentPings(prev => [
+          {
+            type: 'with',
+            text: `Cashout ৳${withdrawBoost} disbursed instantly`,
+            textBn: `৳${withdrawBoost} ক্যাশআউট সফলভাবে পরিশোধিত হয়েছে`,
+            id: randId
+          },
+          ...prev.slice(0, 4)
+        ]);
+      }
+    }, 4500); // Ticks every 4.5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="bg-white p-5 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs space-y-5">
@@ -40,7 +124,7 @@ export const SiteHistoryLiveStats: React.FC<Props> = ({ lang = 'bn' }) => {
             </div>
             <p className="text-xs text-slate-500">
               {lang === 'bn' 
-                ? `আজকের তারিখ: ${stats.dateFormatted} • সার্বিক সিস্টেম হিস্ট্রি ও লেনদেন ডাটা` 
+                ? `আজকের তারিখ: ${stats.dateFormatted} • সার্বিক সিস্টেম হিস্ট্রি ও লাইভ লেনদেন ডাটা` 
                 : `Date: ${stats.dateFormatted} • Platform 24-Hour activity and site history`}
             </p>
           </div>
@@ -57,13 +141,13 @@ export const SiteHistoryLiveStats: React.FC<Props> = ({ lang = 'bn' }) => {
       {/* 3 Core Highlight Cards: Today Registered, Today Deposits, Today Withdrawals */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         {/* 1. Today Registered */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/80 to-indigo-50/50 border border-blue-200/80 flex items-center justify-between">
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/80 to-indigo-50/50 border border-blue-200/80 flex items-center justify-between transition-all hover:scale-[1.01]">
           <div className="space-y-1">
             <span className="text-[11px] font-bold text-blue-900 uppercase tracking-wide flex items-center gap-1">
               <UserPlus className="w-3.5 h-3.5 text-blue-600" />
               {lang === 'bn' ? 'আজকের নতুন রেজিস্ট্রেশন' : 'Today Registered'}
             </span>
-            <div className="text-2xl font-black text-blue-950 font-mono tracking-tight">
+            <div className="text-2xl font-black text-blue-950 font-mono tracking-tight transition-all">
               {stats.todayRegistrations.toLocaleString()} {lang === 'bn' ? 'জন' : 'Users'}
             </div>
             <span className="text-[10px] text-blue-700 font-semibold block">
@@ -77,13 +161,13 @@ export const SiteHistoryLiveStats: React.FC<Props> = ({ lang = 'bn' }) => {
         </div>
 
         {/* 2. Today Deposits */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/80 to-teal-50/50 border border-emerald-200/80 flex items-center justify-between">
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/80 to-teal-50/50 border border-emerald-200/80 flex items-center justify-between transition-all hover:scale-[1.01]">
           <div className="space-y-1">
             <span className="text-[11px] font-bold text-emerald-900 uppercase tracking-wide flex items-center gap-1">
               <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600" />
               {lang === 'bn' ? 'আজকের মোট ডিপোজিট' : 'Today Deposits'}
             </span>
-            <div className="text-2xl font-black text-emerald-950 font-mono tracking-tight">
+            <div className="text-2xl font-black text-emerald-950 font-mono tracking-tight transition-all">
               ৳{stats.todayDepositsAmount.toLocaleString()}
             </div>
             <span className="text-[10px] text-emerald-700 font-semibold block">
@@ -97,13 +181,13 @@ export const SiteHistoryLiveStats: React.FC<Props> = ({ lang = 'bn' }) => {
         </div>
 
         {/* 3. Today Withdrawals */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-50/80 to-pink-50/50 border border-purple-200/80 flex items-center justify-between">
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-50/80 to-pink-50/50 border border-purple-200/80 flex items-center justify-between transition-all hover:scale-[1.01]">
           <div className="space-y-1">
             <span className="text-[11px] font-bold text-purple-900 uppercase tracking-wide flex items-center gap-1">
               <ArrowUpRight className="w-3.5 h-3.5 text-purple-600" />
               {lang === 'bn' ? 'আজকের সফল উইথড্রয়াল' : 'Today Withdrawals'}
             </span>
-            <div className="text-2xl font-black text-purple-950 font-mono tracking-tight">
+            <div className="text-2xl font-black text-purple-950 font-mono tracking-tight transition-all">
               ৳{stats.todayWithdrawalsAmount.toLocaleString()}
             </div>
             <span className="text-[10px] text-purple-700 font-semibold block">
@@ -116,6 +200,24 @@ export const SiteHistoryLiveStats: React.FC<Props> = ({ lang = 'bn' }) => {
           </div>
         </div>
       </div>
+
+      {/* Live Recent Event Ticker */}
+      {recentPings.length > 0 && (
+        <div className="p-3 bg-slate-900 text-white rounded-2xl border border-slate-800 flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+            <span className="text-slate-400 font-bold uppercase text-[10px] shrink-0">
+              {lang === 'bn' ? 'লাইভ আপডেট:' : 'Live Activity:'}
+            </span>
+            <span className="text-emerald-300 font-medium truncate">
+              {lang === 'bn' ? recentPings[0].textBn : recentPings[0].text}
+            </span>
+          </div>
+          <span className="text-[10px] text-slate-400 shrink-0 font-mono">
+            {lang === 'bn' ? 'এইমাত্র' : 'Just now'}
+          </span>
+        </div>
+      )}
 
       {/* Site History & Lifetime Milestones Strip */}
       <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
